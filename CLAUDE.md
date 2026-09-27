@@ -76,9 +76,18 @@ Modos:
   usarlas y **no hay forma de saber a qué ventana fue el alumno**. Se registra igualmente, con un
   motivo que lo indica. Es una limitación conocida, no un bug.
 
+## Hacia la v1.0
+
+El plan vigente está en [docs/PLAN.md](docs/PLAN.md). Decisión clave: se distribuye desde GitHub
+Pages y el servidor Node se sustituye por Firebase Realtime Database + Auth (cuenta
+jfcoroneltoro@gmail.com). La versión con servidor Node queda en la etiqueta `v0.1.0-node`.
+Hasta completar la fase 2 del plan, lo que sigue describe la versión Node.
+
 ## Limitaciones conocidas y pendientes (por prioridad)
 
-1. **Verificar que las herramientas reales se pueden incrustar.** Si fProperties o pSolver envían
+1. ~~Verificar que las herramientas reales se pueden incrustar.~~ Hecho para
+   fproperties.jfcoronel.org y psolver.jfcoronel.org (27/09/2026): sin cabeceras que lo impidan.
+   Para otras URLs sigue valiendo: Si fProperties o pSolver envían
    `X-Frame-Options: DENY/SAMEORIGIN` o `Content-Security-Policy: frame-ancestors`, el iframe sale
    en blanco. Comprobar con `curl -I <url>`. Si no se pueden incrustar, opciones: modo ventana,
    pedir al autor que permita el dominio, o una extensión de navegador complementaria.
