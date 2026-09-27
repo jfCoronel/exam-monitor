@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crear examen | Foco Examen</title>
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="sheet" id="my-exams" hidden>
+      <h2>Tus exámenes en este navegador</h2>
+      <ul id="my-exams-list"></ul>
+    </section>
+
+    <form class="sheet stack" id="create-form" novalidate>
+      <h1>Crear examen</h1>
+
+      <div>
+        <label for="f-name">Nombre del examen</label>
+        <input type="text" id="f-name" required maxlength="120" placeholder="Parcial 1 de Termodinámica">
+      </div>
+
+      <div>
+        <label for="f-duration">Duración <span class="hint">En minutos</span></label>
+        <input type="number" id="f-duration" min="1" max="600" value="90" required style="max-width: 10ch">
+      </div>
+
+      <fieldset>
+        <legend>Herramientas permitidas</legend>
+        <div id="tools"></div>
+        <p style="margin-top: 8px"><button type="button" class="btn-quiet" id="add-tool">Añadir herramienta</button></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Cómo se abren las herramientas</legend>
+        <label class="choice">
+          <input type="radio" name="mode" value="pestana" checked>
+          <span><strong>Dentro de la página del examen</strong>
+            <span class="hint">Recomendado. Cada herramienta aparece como una pestaña interna. Cualquier salida de la página cuenta como incidencia. Requiere que la web permita incrustarse.</span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="mode" value="ventana">
+          <span><strong>En su propia ventana</strong>
+            <span class="hint">Para herramientas instaladas como app o que no se pueden incrustar. Se registra el tiempo fuera de la ventana del examen, pero no a qué ventana fue el alumno.</span></span>
+        </label>
+      </fieldset>
+
+      <details>
+        <summary>Avisos y tolerancia</summary>
+        <div class="stack" style="margin-top: 16px">
+          <div>
+            <label for="f-tolerance">Tolerancia antes de contar incidencia <span class="hint">Evita avisos por un clic accidental</span></label>
+            <select id="f-tolerance" style="max-width: 24ch">
+              <option value="0">Ninguna</option>
+              <option value="3" selected>3 segundos</option>
+              <option value="5">5 segundos</option>
+              <option value="10">10 segundos</option>
+            </select>
+          </div>
+          <div>
+            <label for="f-alert">Mensaje que ve el alumno al volver</label>
+            <textarea id="f-alert" maxlength="300">Este aviso ha quedado registrado y el profesor puede verlo. Mantén esta página en primer plano hasta que termine el examen.</textarea>
+          </div>
+        </div>
+      </details>
+
+      <p class="error" id="create-error" role="alert" hidden></p>
+      <div><button type="submit" class="btn-primary btn-big">Crear examen</button></div>
+    </form>
+  </main>
+
+  <template id="tool-row">
+    <div class="tool-row">
+      <input type="text" class="t-name" placeholder="Nombre" aria-label="Nombre de la herramienta" maxlength="60">
+      <input type="url" class="t-url" placeholder="https://…" aria-label="Dirección web de la herramienta">
+      <button type="button" class="btn-quiet t-del" aria-label="Quitar herramienta">Quitar</button>
+    </div>
+  </template>
+
+  <script type="module" src="/profesor/crear.js"></script>
+</body>
+</html>

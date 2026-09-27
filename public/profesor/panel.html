@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel del examen | Foco Examen</title>
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/profesor/panel.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+</head>
+<body>
+  <main class="page" id="no-access" hidden>
+    <div class="sheet stack">
+      <h1>No tienes acceso a este examen</h1>
+      <p>El panel sólo se abre desde el navegador en el que se creó el examen.</p>
+      <a class="btn" href="/profesor/">Crear un examen</a>
+    </div>
+  </main>
+
+  <div class="panel" id="panel" hidden>
+    <header class="panel-head">
+      <div>
+        <a href="/profesor/" class="small">Mis exámenes</a>
+        <h1 id="p-name"></h1>
+        <div class="row small">
+          <span class="pill" id="p-status"></span>
+          <span class="muted" id="p-meta"></span>
+          <span class="pill warn" id="p-conn" hidden>Panel sin conexión, reconectando</span>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn-primary btn-big" id="btn-start" hidden>Iniciar examen</button>
+        <span class="clock-t" id="p-clock" hidden></span>
+        <button class="btn-danger" id="btn-end" hidden>Finalizar examen</button>
+        <button id="btn-project">Proyectar código</button>
+        <a class="btn" id="btn-csv" download>Exportar CSV</a>
+      </div>
+    </header>
+
+    <section class="join-strip">
+      <div>
+        <p class="muted small" style="margin:0">Código para unirse</p>
+        <div class="code-boxes code-lg" id="p-code"></div>
+      </div>
+      <p class="small">o entrando en <strong id="p-url"></strong></p>
+      <div class="qr" id="p-qr"></div>
+    </section>
+
+    <section class="counters" aria-live="polite">
+      <div><strong id="c-joined">0</strong><span>unidos</span></div>
+      <div><strong id="c-in">0</strong><span>en el examen</span></div>
+      <div class="c-bad"><strong id="c-away">0</strong><span>fuera ahora</span></div>
+      <div class="c-warn"><strong id="c-off">0</strong><span>sin conexión</span></div>
+      <div><strong id="c-flag">0</strong><span>con incidencias</span></div>
+    </section>
+
+    <div class="panel-body">
+      <section>
+        <div class="row spread">
+          <h2>Alumnos</h2>
+          <label class="small" style="font-weight:400"><input type="checkbox" id="only-flagged"> Solo con incidencias</label>
+        </div>
+        <div class="grid" id="grid"></div>
+        <p class="muted" id="grid-empty">Todavía no se ha unido nadie. Proyecta el código para que los alumnos entren.</p>
+      </section>
+      <aside class="side sheet" id="side">
+        <div id="side-feed">
+          <h2>Últimas incidencias</h2>
+          <ol class="log" id="feed"></ol>
+          <p class="muted small" id="feed-empty">Sin incidencias por ahora.</p>
+        </div>
+        <div id="side-student" hidden>
+          <div class="row spread"><h2 id="s-name"></h2><button class="btn-quiet" id="s-close">Cerrar</button></div>
+          <p class="small muted" id="s-summary"></p>
+          <ol class="log" id="s-log"></ol>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="projector" id="projector" hidden>
+    <p>Entra en <strong id="pr-url"></strong> y escribe el código</p>
+    <div class="code-boxes code-xl" id="pr-code"></div>
+    <div class="qr qr-big" id="pr-qr"></div>
+    <button id="pr-close">Cerrar</button>
+  </div>
+
+  <script type="module" src="/profesor/panel.js"></script>
+</body>
+</html>
