@@ -9,6 +9,24 @@ aula (eduroam), se supervisa un examen de 2 h, las incidencias aparecen en el pa
 2 s, se exporta el CSV y los datos del examen se pueden borrar. Todo ello comprobado en una
 prueba piloto real.
 
+## Estado actual y siguiente paso
+
+*Actualizado el 27/09/2026.* Fases 0, 1 y 2 hechas y publicadas en https://exam-monitor.jfcoronel.org.
+
+1. **Siguiente:** prueba real con una cuenta de Google y dos navegadores (o un móvil): crear el
+   examen, unirse por código o QR, iniciar, salir y volver, finalizar y exportar el CSV. Anotar lo
+   que falle; es el criterio "Hecho cuando" de la fase 2.
+2. Después, fase 3.
+
+Notas para retomar en otro equipo:
+- Hace falta Node ≥ 22 y Java ≥ 11 en el `PATH` y luego `npm install`. El CLI de Firebase es
+  dependencia de desarrollo: `npx firebase login` (una vez por equipo) y `npx firebase …`.
+  No hace falta `npm i -g`.
+- Para probar en navegador se usa Playwright con el Chrome instalado
+  (`chromium.launch({ channel: 'chrome' })`) contra `npm run dev`. Chromium headless siempre dice
+  que tiene el foco, así que para simular una salida se sobrescribe `document.hasFocus` desde el test.
+- DNS de `jfcoronel.org` en Cloudflare: el CNAME `exam-monitor` en modo "solo DNS".
+
 ## Decisiones tomadas
 
 | Tema | Decisión | Motivo |
