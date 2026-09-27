@@ -76,8 +76,7 @@ Equivalencias con el protocolo actual:
 ### Fase 1 — Proyecto Firebase y reglas de seguridad
 
 Entorno local: `firebase-tools` es dependencia de desarrollo (`npx firebase …`); Java de Homebrew
-en `/opt/homebrew/opt/openjdk/bin` (tiene que estar en el `PATH`). Con Node 20.17 el CLI necesita
-`NODE_OPTIONS=--experimental-require-module`; con Node ≥ 20.19 no hace falta.
+en `/opt/homebrew/opt/openjdk/bin` (en el `PATH` vía `~/.zshrc`). Node 24 LTS.
 
 - [x] Proyecto `exam-monitor-jfc` y app web creados con el CLI.
 - [x] `firebase.json`, `.firebaserc`, `database.rules.json` y `public/firebase-config.js` (la config

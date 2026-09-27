@@ -8,10 +8,10 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "smoke": "node scripts/smoke-test.js",
-    "test:rules": "firebase emulators:exec --only database --project demo-foco \"node --test test/\""
+    "test:rules": "firebase emulators:exec --only database --project demo-foco \"node --test 'test/**/*.test.js'\""
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",
