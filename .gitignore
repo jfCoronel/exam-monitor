@@ -3,3 +3,6 @@ data/
 *.db
 *.db-*
 .DS_Store
+.firebase/
+firebase-debug.log
+database-debug.log

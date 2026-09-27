@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "smoke": "node scripts/smoke-test.js"
+    "smoke": "node scripts/smoke-test.js",
+    "test:rules": "firebase emulators:exec --only database --project demo-foco \"node --test test/\""
   },
   "engines": {
     "node": ">=20"
@@ -18,6 +19,8 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.19.0",
     "firebase-tools": "^15.31.0"
   }
 }

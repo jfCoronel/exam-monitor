@@ -16,7 +16,8 @@ No es un "lockdown browser": no bloquea nada, **detecta y registra**. El profeso
 - `express` (API + estáticos), `ws` (WebSocket nativo, sin Socket.io), `better-sqlite3` (síncrono).
 - Frontend: HTML + CSS + JS vanilla con módulos ES. Sin build, sin framework. Mantenerlo así
   salvo que haya una razón clara.
-- Idioma de la interfaz y del código comentado: español de España (tú, no vos).
+- Interfaz bilingüe español/inglés (en migración, ver docs/PLAN.md). El español es de España (tú,
+  no vos). Comentarios del código en español.
 
 ## Estructura
 
@@ -79,8 +80,9 @@ Modos:
 ## Hacia la v1.0
 
 El plan vigente está en [docs/PLAN.md](docs/PLAN.md). Decisión clave: se distribuye desde GitHub
-Pages y el servidor Node se sustituye por Firebase Realtime Database + Auth (cuenta
-jfcoroneltoro@gmail.com). La versión con servidor Node queda en la etiqueta `v0.1.0-node`.
+Pages y el servidor Node se sustituye por Firebase Realtime Database + Auth (proyecto
+`exam-monitor-jfc`, cuenta jfcoroneltoro@gmail.com). Dominio: exam-monitor.jfcoronel.org.
+Reglas en `database.rules.json`, tests con `npm run test:rules` (emulador, necesita Java). La versión con servidor Node queda en la etiqueta `v0.1.0-node`.
 Hasta completar la fase 2 del plan, lo que sigue describe la versión Node.
 
 ## Limitaciones conocidas y pendientes (por prioridad)

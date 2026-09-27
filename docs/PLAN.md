@@ -17,8 +17,10 @@ prueba piloto real.
 | Tiempo real y datos | **Firebase Realtime Database**, región `europe-west1` | Pages no ejecuta Node. RTDB tiene plan gratuito sin pausas, `onDisconnect()` resuelve la presencia y las reglas de seguridad sustituyen la validación del servidor. |
 | Autenticación | Alumno: Firebase Anonymous Auth. Profesor: Google Sign-In | El token anónimo persiste en IndexedDB igual que hoy en localStorage. Resuelve el pendiente de cuentas de profesor. |
 | Sin build | SDK de Firebase como módulos ES desde `www.gstatic.com/firebasejs/<versión>/…` | Se mantiene HTML + JS vanilla sin empaquetador. |
+| Idiomas | Interfaz bilingüe **español e inglés** desde la fase 2 | Ver "Internacionalización". |
 | Servidor Node | Se conserva en la etiqueta `v0.1.0-node` y se elimina de `main` al terminar la fase 2 | Un solo camino de despliegue. |
-| Dominio | Recomendado: `examen.jfcoronel.org` (CNAME a Pages) | Mismo *site* que `fproperties.jfcoronel.org` y `psolver.jfcoronel.org`: los iframes no son de terceros y no sufren el particionado de almacenamiento de Safari/Chrome. |
+| Proyecto Firebase | `exam-monitor-jfc` (nombre visible "exam-monitor"), cuenta jfcoroneltoro@gmail.com, plan Blaze | El ID `exam-monitor` ya estaba cogido en Google Cloud y los ID no se pueden cambiar. |
+| Dominio | `exam-monitor.jfcoronel.org` (fichero `public/CNAME`, registro CNAME a `jfcoronel.github.io`) | Mismo *site* que `fproperties.jfcoronel.org` y `psolver.jfcoronel.org`: los iframes no son de terceros y no sufren el particionado de almacenamiento de Safari/Chrome. |
 
 ### Hechos ya comprobados (27/09/2026)
 
@@ -29,11 +31,13 @@ prueba piloto real.
 
 ### Límites de Firebase a tener en cuenta
 
-- **Plan Spark (gratis): 100 conexiones simultáneas por base de datos.** Suficiente para un aula
-  (alumnos + profesor), no para varios exámenes grandes a la vez. Si se supera, pasar a Blaze
-  (pago por uso; para este volumen el coste es de céntimos) o una base de datos por asignatura.
-- Sin Cloud Functions en Spark: todo lo "de servidor" se hace con reglas de seguridad o en el
-  cliente del profesor (que es de confianza).
+- La cuenta es de **pago por uso (Blaze)**, pero cada proyecto nuevo nace en Spark hasta que se
+  vincula a la cuenta de facturación desde la consola. En Spark el límite es de **100 conexiones
+  simultáneas**; en Blaze, 200 000. Para este volumen el coste es de céntimos al mes.
+- Conviene poner una **alerta de presupuesto** (p. ej. 5 €) en Google Cloud Billing.
+- Con Blaze hay Cloud Functions disponibles, pero la v1.0 no las usa: todo lo "de servidor" se
+  hace con reglas de seguridad o en el cliente del profesor (que es de confianza). Candidatas para
+  después: fin automático y borrado programado de exámenes antiguos.
 
 ## Modelo de datos en RTDB
 
@@ -41,7 +45,7 @@ prueba piloto real.
 /codes/{code}                      { examId, ownerUid }            solo exámenes no finalizados
 /exams/{examId}/meta               { name, durationMin, mode, tools, toleranceMs, alertText,
                                      status, code, ownerUid, createdAt, startedAt, endedAt }
-/exams/{examId}/students/{uid}     { name, joinedAt }
+/exams/{examId}/students/{uid}     { name, code, joinedAt }          code = prueba de que lo conoce
 /exams/{examId}/presence/{uid}     { online, changedAt }            con onDisconnect()
 /exams/{examId}/events/{uid}/{clientId}
                                    { type, ts: SERVER_TIMESTAMP, clientTs, durationMs?, reason? }
@@ -59,7 +63,7 @@ Equivalencias con el protocolo actual:
 | `infraction` calculado en el servidor | Se calcula en el panel del profesor a partir de los datos guardados. Mejor aún: la duración se obtiene de los `ts` de servidor de `away_start`/`away_end`, no del `durationMs` que manda el alumno. |
 | `disconnected` / `reconnected` | `onDisconnect()` escribe presencia y un evento `disconnected` con clave preasignada; al reconectar, el alumno escribe `reconnected`. |
 | `page_leave` por `sendBeacon` | `onDisconnect()` cubre el cierre. Probar además `sendBeacon` a la API REST de RTDB (`POST …/events/{uid}.json?auth=<idToken>`). |
-| Unicidad del código | Transacción sobre `/codes/{code}`. |
+| Unicidad del código | Actualización multirruta (`codes`, `meta`, `teachers`) que las reglas rechazan entera si el código está en uso por un examen no finalizado. |
 | CSV en el servidor | Se genera en el navegador del profesor (Blob + descarga). |
 
 ## Fases
@@ -71,22 +75,23 @@ Equivalencias con el protocolo actual:
 
 ### Fase 1 — Proyecto Firebase y reglas de seguridad
 
-Cuenta de Firebase: **jfcoroneltoro@gmail.com**. Requisitos locales que faltan: Firebase CLI
-(`npm i -g firebase-tools`, luego `firebase login` con esa cuenta, que es interactivo) y Java ≥ 11
-para el emulador (`brew install openjdk`).
+Entorno local: `firebase-tools` es dependencia de desarrollo (`npx firebase …`); Java de Homebrew
+en `/opt/homebrew/opt/openjdk/bin` (tiene que estar en el `PATH`). Con Node 20.17 el CLI necesita
+`NODE_OPTIONS=--experimental-require-module`; con Node ≥ 20.19 no hace falta.
 
-Trabajo manual en la consola de Firebase (15 min):
-crear proyecto, RTDB en `europe-west1`, activar Anonymous y Google en Authentication, añadir el
-dominio de Pages a los dominios autorizados.
-
-- [ ] `firebase.json`, `database.rules.json` y `public/firebase-config.js` (la config web es
-      pública; la seguridad está en las reglas).
-- [ ] Reglas: el alumno solo escribe en sus propios nodos; tipos de evento válidos; `ts` = hora del
-      servidor; eventos solo con el examen `active`; solo el propietario cambia `status`;
-      `/codes` se lee por clave pero no se puede listar.
+- [x] Proyecto `exam-monitor-jfc` y app web creados con el CLI.
+- [x] `firebase.json`, `.firebaserc`, `database.rules.json` y `public/firebase-config.js` (la config
+      web es pública; la seguridad está en las reglas).
+- [x] Reglas: el alumno solo escribe en sus propios nodos; tipos de evento válidos; `ts` = hora del
+      servidor; eventos solo con el examen `active`; solo el propietario cambia `status` y en qué
+      orden; la configuración del examen es inmutable; `/codes` se lee por clave pero no se lista.
+- [x] Tests de reglas con el emulador: `npm run test:rules` (46 casos).
+- [ ] **Consola de Firebase** (manual): crear la Realtime Database en `europe-west1` (el CLI no crea
+      la instancia por defecto), activar Anonymous y Google en Authentication, añadir
+      `exam-monitor.jfcoronel.org` a los dominios autorizados, vincular la facturación.
+- [ ] Desplegar reglas: `npx firebase deploy --only database`.
 - [ ] Opcional: restringir la creación de exámenes a correos `@us.es` desde las reglas.
-- [ ] Tests de reglas con el emulador (`@firebase/rules-unit-testing`, requiere Java) que cubran
-      los mismos casos que hoy el smoke test. `npm test`.
+- [ ] Comprobar en el emulador que `onDisconnect()` pasa las reglas (se evalúan al registrarlo).
 
 **Hecho cuando**: los tests de reglas pasan y cubren cada regla de la sección "Reglas" de
 CLAUDE.md.
@@ -98,10 +103,14 @@ CLAUDE.md.
 - [ ] Alumno: unirse, sala de espera, examen y monitor de foco sobre `backend.js`. Mantener la cola
       en localStorage solo para sobrevivir a recargas (RTDB ya encola escrituras sin conexión en
       memoria).
+- [ ] **Internacionalización** (ver abajo) desde el primer fichero migrado, no al final.
 - [ ] Profesor: inicio de sesión con Google, lista "mis exámenes" desde `/teachers/{uid}`, panel en
       vivo, CSV en el cliente.
 - [ ] **Rutas relativas** en todo: hoy hay rutas absolutas (`/common.js`, `/profesor/…`, `sw.js`,
-      `start_url` y `scope` del manifest) que se rompen bajo `jfcoronel.github.io/exam-monitor/`.
+      `start_url` y `scope` del manifest). Con el dominio propio funcionarían, pero las relativas
+      permiten servirlo también desde `jfcoronel.github.io/exam-monitor/` y en local.
+- [ ] DNS: registro CNAME `exam-monitor` → `jfcoronel.github.io` y dominio configurado en Pages
+      con HTTPS obligatorio.
 - [ ] Service worker: versión de caché ligada a la versión de la app; no cachear peticiones a
       Firebase.
 - [ ] Workflow de GitHub Actions que publica `public/` en Pages (y, si se quiere, despliega reglas
@@ -112,6 +121,26 @@ CLAUDE.md.
 
 **Hecho cuando**: el flujo completo (crear → unirse → iniciar → salir y volver → finalizar →
 CSV) funciona en la URL de Pages con dos navegadores reales.
+
+#### Internacionalización (español e inglés)
+
+- Diccionarios como módulos ES sin build: `public/i18n/es.js` y `public/i18n/en.js`, con las mismas
+  claves. Función `t(clave, params)` en `public/i18n/index.js`, con interpolación (`{name}`) y
+  plurales mediante `Intl.PluralRules`.
+- HTML con atributos `data-i18n` (texto), `data-i18n-attr` (placeholder, aria-label, title);
+  una función aplica las traducciones al cargar y al cambiar de idioma.
+- Idioma elegido: `localStorage` → `navigator.languages` → español por defecto. Selector ES/EN
+  visible en la cabecera de todas las pantallas; actualiza `<html lang>`.
+- Fechas, horas y duraciones con `Intl.DateTimeFormat`/`Intl.RelativeTimeFormat` según el idioma.
+- Los datos guardados no dependen del idioma: tipos de evento y motivos se guardan como códigos
+  (`reason: 'hidden'`, `'blur'`, `'tool:fProperties'`…) y se traducen al mostrarlos. El CSV sale en el
+  idioma del profesor.
+- Los errores de las reglas llegan como `permission_denied`: el cliente comprueba antes lo que puede
+  (código de 6 cifras, nombre) y traduce cada fallo a un mensaje que dice qué pasa y cómo arreglarlo.
+- El texto de aviso del examen lo escribe el profesor; el texto por defecto sale en el idioma del
+  profesor al crear el examen.
+- `manifest.webmanifest`: uno por idioma no merece la pena; nombre neutro "Exam Monitor".
+- Test sencillo que falla si `es.js` y `en.js` no tienen exactamente las mismas claves.
 
 ### Fase 3 — Robustez durante el examen
 
