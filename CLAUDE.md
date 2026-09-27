@@ -106,6 +106,7 @@ CSP, comprobado el 27/09/2026). Para otras URLs, comprobar con `curl -I <url>`.
 
 ## Internacionalización
 
+- El nombre de la app es **Exam Monitor** en todos los idiomas (`app.name`): no se traduce.
 - Español (España, tú) e inglés. Cada texto visible pasa por `t('clave', params)` o por atributos
   `data-i18n` / `data-i18n-attr="placeholder:clave;aria-label:clave"` en el HTML.
 - Plurales: valor `{ one, other }` y `params.count`. Interpolación con `{nombre}`.

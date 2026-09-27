@@ -1,7 +1,7 @@
 // English. Keys must match es.js: checked by test/i18n.test.js.
 // A {one, other} value is a plural form chosen with params.count.
 export default {
-  'app.name': 'Exam Monitor',
+  'app.name': 'Exam Monitor', // nombre de la app: igual en todos los idiomas, no se traduce
   'common.loading': 'Loading…',
   'common.close': 'Close',
 

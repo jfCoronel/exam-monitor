@@ -1,4 +1,4 @@
-# Foco Examen · Exam Monitor
+# Exam Monitor
 
 PWA para exámenes presenciales en los que los alumnos pueden usar herramientas web concretas
 (por ejemplo fProperties o pSolver). El profesor crea el examen, los alumnos se unen con un

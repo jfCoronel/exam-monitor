@@ -1,6 +1,6 @@
 {
-  "name": "Foco Examen · Exam Monitor",
-  "short_name": "Foco Examen",
+  "name": "Exam Monitor",
+  "short_name": "Exam Monitor",
   "description": "Únete al examen y mantén el foco en las herramientas permitidas. / Join the exam and keep focus on the allowed tools.",
   "start_url": "./alumno/",
   "scope": "./",

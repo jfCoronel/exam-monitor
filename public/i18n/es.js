@@ -1,7 +1,7 @@
 // Español (España). Las claves deben coincidir con en.js: lo comprueba test/i18n.test.js.
 // Un valor {one, other} es plural y se elige con params.count.
 export default {
-  'app.name': 'Foco Examen',
+  'app.name': 'Exam Monitor', // nombre de la app: igual en todos los idiomas, no se traduce
   'common.loading': 'Cargando…',
   'common.close': 'Cerrar',
 

@@ -25,7 +25,7 @@ createServer(async (req, res) => {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('No encontrado');
   }
 }).listen(PORT, () => {
-  console.log(`\nFoco Examen en desarrollo (emuladores): http://localhost:${PORT}/`);
+  console.log(`\nExam Monitor en desarrollo (emuladores): http://localhost:${PORT}/`);
   console.log(`  Alumnos:  http://localhost:${PORT}/alumno/`);
   console.log(`  Profesor: http://localhost:${PORT}/profesor/\n`);
 });
