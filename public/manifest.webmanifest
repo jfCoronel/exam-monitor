@@ -1,17 +1,16 @@
 {
-  "name": "Foco Examen",
+  "name": "Foco Examen · Exam Monitor",
   "short_name": "Foco Examen",
-  "description": "Únete al examen y mantén el foco en las herramientas permitidas.",
-  "lang": "es",
-  "start_url": "/alumno/",
-  "scope": "/",
+  "description": "Únete al examen y mantén el foco en las herramientas permitidas. / Join the exam and keep focus on the allowed tools.",
+  "start_url": "./alumno/",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f7f9fb",
   "theme_color": "#14233a",
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
   ]
 }

@@ -1,126 +1,141 @@
-import { $, esc, uid, api, connect, fmtClock, fmtDur } from '/common.js';
+import { $, esc, uid, fmtClock, fmtDur } from '../common.js';
+import { t, mountLangSwitch } from '../i18n/index.js';
+import { createBackend } from '../backend.js';
 
-const SESSION_KEY = 'focoExamen.alumno';
+const SESSION_KEY = 'examMonitor.alumno';
+const NAME_KEY = 'examMonitor.ultimoNombre';
 const POLL_MS = 500;
 
-// ---------- Estado ----------
-let session = readJSON(localStorage, SESSION_KEY); // { token, studentId, name, examId }
-let exam = null;
-let conn = null;
-let clockOffset = 0;      // serverNow - Date.now()
-let entered = false;      // el alumno ha pulsado "Entrar al examen" en esta carga de página
-let away = null;          // { since, reason, clientId } mientras está fuera
-let lastToolOpen = null;  // modo ventana: { name, at }
-let queue = [];           // eventos pendientes de confirmar por el servidor
+const be = createBackend();
 
-function readJSON(store, key) { try { return JSON.parse(store.getItem(key)); } catch { return null; } }
-const queueKey = () => `focoExamen.cola.${session?.studentId}`;
+// ---------- Estado ----------
+let session = readJSON(SESSION_KEY); // { examId, name }
+let exam = null;
+let stopMeta = null;
+let presence = null;
+let clockOffset = 0;      // hora del servidor - Date.now()
+let entered = false;      // el alumno ha pulsado "Entrar al examen" en esta carga de página
+let away = null;          // { since, reason } mientras está fuera
+let lastToolOpen = null;  // modo ventana: { name, at }
+let queue = [];           // eventos pendientes de confirmar por el servidor (sobreviven a recargas)
+
+function readJSON(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
+const queueKey = () => `examMonitor.cola.${session?.examId}`;
 const saveQueue = () => { if (session) localStorage.setItem(queueKey(), JSON.stringify(queue)); };
+const serverNow = () => Date.now() + clockOffset;
 
 // ---------- Vistas ----------
-const views = ['join', 'wait', 'exam', 'done'];
+const views = ['loading', 'join', 'wait', 'exam', 'done'];
 function show(name) {
   for (const v of views) $(`#view-${v}`).hidden = v !== name;
 }
 
 function render() {
-  if (!session || !exam) return show('join');
+  if (!session || !exam) return show(session ? 'loading' : 'join');
   if (exam.status === 'finished') { stopMonitoring(); return show('done'); }
-  if (exam.status === 'active' && entered) return show('exam');
+  if (exam.status === 'active' && entered) { renderExamBar(); return show('exam'); }
 
   show('wait');
-  $('#wait-hello').textContent = `Hola, ${session.name}`;
+  $('#wait-hello').textContent = t('wait.hello', { name: session.name });
   $('#wait-exam-name').textContent = exam.name;
   $('#wait-waiting').hidden = exam.status !== 'waiting';
   $('#wait-ready').hidden = exam.status !== 'active';
   $('#wait-tools').innerHTML = exam.tools.length
-    ? exam.tools.map((t) => `<li><strong>${esc(t.name)}</strong> <span class="muted">${esc(new URL(t.url).hostname)}</span></li>`).join('')
-    : '<li class="muted">Ninguna. El examen se hace sin herramientas externas.</li>';
+    ? exam.tools.map((tool) => `<li><strong>${esc(tool.name)}</strong> <span class="muted">${esc(new URL(tool.url).hostname)}</span></li>`).join('')
+    : `<li class="muted">${esc(t('wait.noTools'))}</li>`;
   const rules = [
-    'Mantén esta página abierta y en primer plano durante todo el examen.',
-    exam.mode === 'pestana'
-      ? 'Las herramientas se abren dentro de esta misma página, en pestañas propias. No abras otras pestañas ni programas.'
-      : 'Las herramientas se abren en su propia ventana. Cada vez que la ventana del examen pierde el foco, queda registrado.',
-    `Si sales${exam.toleranceMs ? ` más de ${fmtDur(exam.toleranceMs)}` : ''}, el profesor verá una incidencia con la hora y la duración.`,
+    t('rules.keepOpen'),
+    exam.mode === 'pestana' ? t('rules.tabMode') : t('rules.windowMode'),
+    exam.toleranceMs ? t('rules.awayTolerance', { dur: fmtDur(exam.toleranceMs) }) : t('rules.away'),
   ];
   $('#wait-rules-list').innerHTML = rules.map((r) => `<li>${esc(r)}</li>`).join('');
+}
+
+function renderExamBar() {
+  $('#bar-exam').textContent = exam.name;
+  $('#bar-student').textContent = session.name;
 }
 
 // ---------- Unirse ----------
 const params = new URLSearchParams(location.search);
 if (params.get('code')) $('#join-code').value = params.get('code').replace(/\D/g, '').slice(0, 6);
-$('#join-name').value = localStorage.getItem('focoExamen.ultimoNombre') || '';
+$('#join-name').value = localStorage.getItem(NAME_KEY) || '';
 
 $('#join-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const errEl = $('#join-error');
   errEl.hidden = true;
-  const name = $('#join-name').value.trim();
+  const showError = (msg) => { errEl.textContent = msg; errEl.hidden = false; };
+  const name = $('#join-name').value.trim().replace(/\s+/g, ' ').slice(0, 80);
   const code = $('#join-code').value.replace(/\D/g, '');
-  if (!name) return showError('Escribe tu nombre y apellidos.');
-  if (code.length !== 6) return showError('El código tiene 6 cifras.');
+  if (!name) return showError(t('err.name_required'));
+  if (code.length !== 6) return showError(t('err.code_format'));
   const btn = e.submitter; btn.disabled = true;
   try {
-    const r = await api('/api/join', { method: 'POST', body: { name, code } });
-    localStorage.setItem('focoExamen.ultimoNombre', name);
-    session = { token: r.token, studentId: r.studentId, name: r.name, examId: r.exam.id };
+    const r = await be.joinExam(code, name);
+    localStorage.setItem(NAME_KEY, name);
+    session = { examId: r.examId, name: r.name };
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    exam = r.exam;
-    queue = [];
     history.replaceState(null, '', location.pathname);
-    startConnection();
+    startSession();
     render();
   } catch (err) {
-    showError(err.message);
+    showError(t(`err.${err.code || 'network'}`));
   } finally { btn.disabled = false; }
-
-  function showError(msg) { errEl.textContent = msg; errEl.hidden = false; }
 });
 
 // ---------- Conexión ----------
-function startConnection() {
-  conn?.close();
-  queue = readJSON(localStorage, queueKey()) || [];
-  conn = connect({
-    hello: () => ({ t: 'hello', role: 'student', token: session.token }),
-    onStatus(status) {
-      const pill = $('#bar-conn');
-      if (status === 'online') {
-        pill.textContent = 'Conectado'; pill.className = 'pill ok';
-        flushQueue();
-      } else if (status === 'unauthorized') {
-        resetSession();
-      } else {
-        pill.textContent = 'Sin conexión'; pill.className = 'pill warn';
-        pill.title = 'Tus registros se enviarán cuando vuelva la conexión';
-      }
-    },
-    onMessage(m) {
-      if (m.t === 'exam') {
-        const wasActive = exam?.status === 'active';
-        exam = m.exam;
-        clockOffset = m.serverNow - Date.now();
-        if (exam.status === 'active' && !wasActive) buildToolArea();
-        render();
-      } else if (m.t === 'ack') {
-        queue = queue.filter((e) => e.clientId !== m.clientId);
-        saveQueue();
-      }
-    },
-  });
+function startSession() {
+  stopSession();
+  queue = readJSON(queueKey()) || [];
+  presence = be.presence(session.examId, { clientTs: serverNow, newId: uid });
+  stopMeta = be.watchMeta(session.examId, (m) => {
+    if (!m) return resetSession(); // el profesor ha borrado el examen
+    const wasActive = exam?.status === 'active';
+    exam = m;
+    presence.setActive(exam.status === 'active');
+    if (exam.status === 'active' && !wasActive && entered) buildToolArea();
+    render();
+  }, (err) => { if (err.code === 'permission') resetSession(); });
+  queue.forEach(deliver); // reenvío de lo que quedó pendiente antes de recargar
 }
+
+function stopSession() {
+  stopMeta?.(); stopMeta = null;
+  presence?.stop(); presence = null;
+}
+
+be.onServerOffset((ms) => { clockOffset = ms; });
+be.onConnected((online) => {
+  const pill = $('#bar-conn');
+  pill.textContent = t(online ? 'conn.online' : 'conn.offline');
+  pill.className = `pill ${online ? 'ok' : 'warn'}`;
+  pill.title = online ? '' : t('conn.offlineHint');
+  pill.dataset.online = String(online);
+});
 
 function sendEvent(type, extra = {}) {
-  const ev = { t: 'event', type, clientId: uid(), ts: Date.now() + clockOffset, ...extra };
+  const ev = { clientId: uid(), type, clientTs: serverNow(), ...extra };
   queue.push(ev);
   saveQueue();
-  conn?.send(ev);
-  return ev;
+  deliver(ev);
 }
-function flushQueue() { for (const ev of queue) conn.send(ev); }
+
+/** El evento sale de la cola cuando el servidor lo confirma, o cuando lo rechaza (duplicado, examen cerrado). */
+function deliver(ev) {
+  const examId = session.examId;
+  be.sendEvent(examId, ev).then(ack, (err) => { if (err.code === 'permission') ack(); });
+  function ack() {
+    if (session?.examId !== examId) return;
+    queue = queue.filter((q) => q.clientId !== ev.clientId);
+    saveQueue();
+  }
+}
 
 function resetSession() {
-  conn?.close(); conn = null;
+  stopSession();
+  stopMonitoring();
+  if (session) localStorage.removeItem(queueKey());
   localStorage.removeItem(SESSION_KEY);
   session = null; exam = null; entered = false;
   render();
@@ -144,29 +159,26 @@ async function goFullscreen() {
 // ---------- Herramientas ----------
 function buildToolArea() {
   if (!exam) return;
-  $('#bar-exam').textContent = exam.name;
-  $('#bar-student').textContent = session.name;
+  renderExamBar();
   const tabs = $('#tool-tabs'), area = $('#tool-area');
   tabs.innerHTML = ''; area.innerHTML = '';
 
   if (!exam.tools.length) {
-    area.innerHTML = `<div class="tool-empty"><h2>Examen sin herramientas</h2>
-      <p>Deja esta página abierta en primer plano hasta que termine el examen.</p></div>`;
+    area.innerHTML = `<div class="tool-empty"><h2>${esc(t('exam.noToolsTitle'))}</h2><p>${esc(t('exam.noToolsText'))}</p></div>`;
     return;
   }
 
   if (exam.mode === 'ventana') {
-    area.innerHTML = `<div class="tool-empty"><h2>Herramientas del examen</h2>
-      <p>Cada herramienta se abre en su propia ventana. Mantén esta ventana visible (por ejemplo, a un lado de la pantalla):
-      el tiempo que pases fuera de ella queda registrado.</p><div class="tool-launchers"></div></div>`;
+    area.innerHTML = `<div class="tool-empty"><h2>${esc(t('exam.windowTitle'))}</h2>
+      <p>${esc(t('exam.windowText'))}</p><div class="tool-launchers"></div></div>`;
     const box = area.querySelector('.tool-launchers');
-    exam.tools.forEach((t, i) => {
+    exam.tools.forEach((tool, i) => {
       const b = document.createElement('button');
       b.className = 'btn-primary';
-      b.textContent = `Abrir ${t.name}`;
+      b.textContent = t('exam.open', { name: tool.name });
       b.addEventListener('click', () => {
-        lastToolOpen = { name: t.name, at: Date.now() };
-        window.open(t.url, `herramienta-${i}`, 'popup,width=1100,height=800');
+        lastToolOpen = { name: tool.name, at: Date.now() };
+        window.open(tool.url, `herramienta-${i}`, 'popup,width=1100,height=800');
       });
       box.append(b);
     });
@@ -174,7 +186,7 @@ function buildToolArea() {
   }
 
   // Modo pestaña: cada herramienta en un iframe dentro de esta página. Se crean al abrir la pestaña
-  // por primera vez y luego sólo se ocultan, para no perder lo que el alumno haya hecho.
+  // por primera vez y luego solo se ocultan, para no perder lo que el alumno haya hecho.
   const frames = new Map();
   const select = (i) => {
     [...tabs.children].forEach((b, j) => b.setAttribute('aria-selected', String(i === j)));
@@ -188,10 +200,10 @@ function buildToolArea() {
     }
     frames.forEach((f, j) => { f.hidden = j !== i; });
   };
-  exam.tools.forEach((t, i) => {
+  exam.tools.forEach((tool, i) => {
     const b = document.createElement('button');
     b.setAttribute('role', 'tab');
-    b.textContent = t.name;
+    b.textContent = tool.name;
     b.addEventListener('click', () => select(i));
     tabs.append(b);
   });
@@ -202,7 +214,7 @@ function buildToolArea() {
 // Fuente de verdad: document.hasFocus() + visibilityState, comprobados cada 500 ms.
 // hasFocus() sigue siendo true cuando el foco está dentro de un iframe de esta página,
 // así que usar la herramienta incrustada NO cuenta como salir. Los eventos blur/visibilitychange
-// sólo adelantan la comprobación para que sea inmediata.
+// solo adelantan la comprobación para que sea inmediata.
 let pollTimer = null;
 const monitoring = () => entered && exam?.status === 'active';
 
@@ -220,15 +232,15 @@ function check() {
   if (!monitoring()) return;
   const visible = document.visibilityState === 'visible';
   const focused = visible && document.hasFocus();
-  if (!focused && !away) startAway(visible ? 'La ventana del examen perdió el foco' : 'Página oculta (otra pestaña, ventana minimizada…)');
+  if (!focused && !away) startAway(visible ? 'blur' : 'hidden');
   else if (focused && away) endAway(true);
 }
 
 function startAway(reason) {
   if (exam.mode === 'ventana' && lastToolOpen && Date.now() - lastToolOpen.at < 3000) {
-    reason = `Abrió la herramienta ${lastToolOpen.name}`;
-  } else if (exam.mode === 'ventana') {
-    reason += ' (modo ventana: no se puede saber a qué ventana fue)';
+    reason = `tool:${lastToolOpen.name}`;
+  } else if (exam.mode === 'ventana' && reason === 'blur') {
+    reason = 'window'; // no se puede saber a qué ventana fue
   }
   away = { since: Date.now(), reason };
   sendEvent('away_start', { reason });
@@ -236,21 +248,20 @@ function startAway(reason) {
 }
 
 function endAway(showAlert) {
-  const durationMs = Date.now() - away.since;
+  const durationMs = Math.min(Date.now() - away.since, 86_400_000);
   sendEvent('away_end', { reason: away.reason, durationMs });
   away = null;
   setAwayTitle(false);
   if (showAlert && durationMs >= exam.toleranceMs) {
     $('#alert-text').textContent = exam.alertText;
-    $('#alert-dur').textContent = `Tiempo fuera: ${fmtDur(durationMs)}`;
+    $('#alert-dur').textContent = t('alert.dur', { dur: fmtDur(durationMs) });
     $('#alert').hidden = false;
     $('#btn-alert-ok').focus();
   }
 }
 
 // El título cambia mientras está fuera: se ve en la barra de tareas y en la pestaña.
-const baseTitle = document.title;
-function setAwayTitle(on) { document.title = on ? '⚠ Vuelve al examen' : baseTitle; }
+function setAwayTitle(on) { document.title = on ? t('title.away') : t('app.name'); }
 
 document.addEventListener('visibilitychange', check);
 window.addEventListener('blur', () => setTimeout(check, 50));
@@ -268,40 +279,49 @@ $('#btn-alert-ok').addEventListener('click', () => {
   if (exam?.mode === 'pestana') goFullscreen();
 });
 
-// Cerrar o recargar la página: último aviso con sendBeacon (fetch normal no llega a salir).
+// Cerrar o recargar la página: último aviso con sendBeacon a la API REST (el SDK no llega a enviarlo).
+// Si falla, queda igualmente el 'disconnected' que registra el servidor al perder la conexión.
 window.addEventListener('pagehide', () => {
-  if (!monitoring()) return;
-  const body = JSON.stringify({ token: session.token, clientId: uid(), ts: Date.now() + clockOffset });
-  navigator.sendBeacon('/api/beacon', new Blob([body], { type: 'text/plain' }));
+  if (!monitoring() || !navigator.sendBeacon) return;
+  const url = be.eventRestUrl(session.examId);
+  if (url) navigator.sendBeacon(url, new Blob([be.restEventBody({ type: 'page_leave', clientTs: serverNow() })], { type: 'text/plain' }));
 });
 
 // ---------- Reloj ----------
 setInterval(() => {
   if (!exam?.startedAt || exam.status !== 'active') return;
-  const left = exam.startedAt + exam.durationMin * 60_000 - (Date.now() + clockOffset);
+  const left = exam.startedAt + exam.durationMin * 60_000 - serverNow();
   const el = $('#bar-clock');
-  el.textContent = left > 0 ? fmtClock(left) : 'Tiempo';
+  el.textContent = left > 0 ? fmtClock(left) : t('exam.timeUp');
   el.classList.toggle('low', left < 5 * 60_000);
 }, 250);
 
 $('#btn-leave').addEventListener('click', resetSession);
 
+// ---------- Idioma ----------
+mountLangSwitch();
+document.addEventListener('langchange', () => {
+  render();
+  if (monitoring()) buildToolAreaTextsOnly();
+  setAwayTitle(!!away);
+  const pill = $('#bar-conn');
+  if (pill.dataset.online) pill.textContent = t(pill.dataset.online === 'true' ? 'conn.online' : 'conn.offline');
+});
+// Durante el examen no se reconstruyen los iframes (se perdería el trabajo): solo los textos.
+function buildToolAreaTextsOnly() {
+  if (exam.mode === 'ventana' || !exam.tools.length) buildToolArea();
+}
+
 // ---------- Arranque ----------
 (async function boot() {
   if ('serviceWorker' in navigator && window.isSecureContext) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('../sw.js').catch(() => {});
   }
-  if (!session) return render();
-  try {
-    const r = await api('/api/session', { token: session.token });
-    exam = r.exam;
-    startConnection();
-  } catch (err) {
-    if (err.status === 401) session = null;
-    else { // sin red: mantenemos la sesión y reintentamos por WebSocket
-      startConnection();
-      return show('wait');
-    }
-  }
+  setAwayTitle(false);
   render();
+  if (!session) return;
+  const user = await be.ready();
+  const me = user && await be.getMyStudent(session.examId).catch(() => 'offline');
+  if (!me) { resetSession(); return; }
+  startSession();
 })();

@@ -73,7 +73,7 @@ Equivalencias con el protocolo actual:
 - [x] Repo público `jfCoronel/exam-monitor`, rama `main`, etiqueta `v0.1.0-node`.
 - [x] Verificado que las herramientas se pueden incrustar.
 
-### Fase 1 — Proyecto Firebase y reglas de seguridad
+### Fase 1 — Proyecto Firebase y reglas de seguridad (hecha)
 
 Entorno local: `firebase-tools` es dependencia de desarrollo (`npx firebase …`); Java de Homebrew
 en `/opt/homebrew/opt/openjdk/bin` (en el `PATH` vía `~/.zshrc`). Node 24 LTS.
@@ -84,39 +84,43 @@ en `/opt/homebrew/opt/openjdk/bin` (en el `PATH` vía `~/.zshrc`). Node 24 LTS.
 - [x] Reglas: el alumno solo escribe en sus propios nodos; tipos de evento válidos; `ts` = hora del
       servidor; eventos solo con el examen `active`; solo el propietario cambia `status` y en qué
       orden; la configuración del examen es inmutable; `/codes` se lee por clave pero no se lista.
-- [x] Tests de reglas con el emulador: `npm run test:rules` (46 casos).
-- [ ] **Consola de Firebase** (manual): crear la Realtime Database en `europe-west1` (el CLI no crea
+- [x] Tests de reglas con el emulador: `npm test` (46 casos).
+- [x] **Consola de Firebase** (manual): crear la Realtime Database en `europe-west1` (el CLI no crea
       la instancia por defecto), activar Anonymous y Google en Authentication, añadir
       `exam-monitor.jfcoronel.org` a los dominios autorizados, vincular la facturación.
-- [ ] Desplegar reglas: `npx firebase deploy --only database`.
+- [x] Desplegar reglas: `npx firebase deploy --only database`.
 - [ ] Opcional: restringir la creación de exámenes a correos `@us.es` desde las reglas.
-- [ ] Comprobar en el emulador que `onDisconnect()` pasa las reglas (se evalúan al registrarlo).
+- [x] Comprobar en el emulador que `onDisconnect()` pasa las reglas (se evalúan al registrarlo).
 
 **Hecho cuando**: los tests de reglas pasan y cubren cada regla de la sección "Reglas" de
 CLAUDE.md.
 
-### Fase 2 — Migrar el frontend y publicar en Pages
+### Fase 2 — Migrar el frontend y publicar en Pages (hecha salvo la prueba con dos navegadores reales en Pages)
 
-- [ ] `public/backend.js`: única capa que habla con Firebase (crear examen, unirse, sesión,
+Verificado en local con Chrome (Playwright + emuladores): crear, unirse, iniciar, entrar con
+fProperties en iframe, salir y volver (aviso + incidencia en el panel), cambio de idioma, CSV,
+recarga del panel y fin. `npm run smoke`: 33 comprobaciones.
+
+- [x] `public/backend.js`: única capa que habla con Firebase (crear examen, unirse, sesión,
       suscripciones, enviar evento, iniciar/finalizar). El resto del código no importa Firebase.
-- [ ] Alumno: unirse, sala de espera, examen y monitor de foco sobre `backend.js`. Mantener la cola
+- [x] Alumno: unirse, sala de espera, examen y monitor de foco sobre `backend.js`. Mantener la cola
       en localStorage solo para sobrevivir a recargas (RTDB ya encola escrituras sin conexión en
       memoria).
-- [ ] **Internacionalización** (ver abajo) desde el primer fichero migrado, no al final.
-- [ ] Profesor: inicio de sesión con Google, lista "mis exámenes" desde `/teachers/{uid}`, panel en
+- [x] **Internacionalización** (ver abajo) desde el primer fichero migrado, no al final.
+- [x] Profesor: inicio de sesión con Google, lista "mis exámenes" desde `/teachers/{uid}`, panel en
       vivo, CSV en el cliente.
-- [ ] **Rutas relativas** en todo: hoy hay rutas absolutas (`/common.js`, `/profesor/…`, `sw.js`,
+- [x] **Rutas relativas** en todo: hoy hay rutas absolutas (`/common.js`, `/profesor/…`, `sw.js`,
       `start_url` y `scope` del manifest). Con el dominio propio funcionarían, pero las relativas
       permiten servirlo también desde `jfcoronel.github.io/exam-monitor/` y en local.
-- [ ] DNS: registro CNAME `exam-monitor` → `jfcoronel.github.io` y dominio configurado en Pages
+- [x] DNS: registro CNAME `exam-monitor` → `jfcoronel.github.io` y dominio configurado en Pages
       con HTTPS obligatorio.
-- [ ] Service worker: versión de caché ligada a la versión de la app; no cachear peticiones a
+- [x] Service worker: versión de caché ligada a la versión de la app; no cachear peticiones a
       Firebase.
-- [ ] Workflow de GitHub Actions que publica `public/` en Pages (y, si se quiere, despliega reglas
+- [x] Workflow de GitHub Actions que publica `public/` en Pages (y, si se quiere, despliega reglas
       con `firebase deploy --only database`).
-- [ ] Reescribir `scripts/smoke-test.js` contra el emulador. Eliminar `server/` y las dependencias
+- [x] Reescribir `scripts/smoke-test.js` contra el emulador. Eliminar `server/` y las dependencias
       de Node del runtime.
-- [ ] Actualizar README y CLAUDE.md (stack, protocolo, despliegue).
+- [x] Actualizar README y CLAUDE.md (stack, protocolo, despliegue).
 
 **Hecho cuando**: el flujo completo (crear → unirse → iniciar → salir y volver → finalizar →
 CSV) funciona en la URL de Pages con dos navegadores reales.

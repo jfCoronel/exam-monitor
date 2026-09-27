@@ -1,106 +1,114 @@
-// Test de humo: arranca el servidor con BD en memoria y simula un profesor y un alumno.
-// Uso: npm run smoke
-import { spawn } from 'node:child_process';
-import WebSocket from 'ws';
+// Test de extremo a extremo sin navegador: profesor y alumnos simulados con el mismo backend.js que usa
+// la app, contra los emuladores de Auth y RTDB. Ejecutar con `npm run smoke`.
+import { createBackend } from '../public/backend.js';
+import { isInfraction } from '../public/common.js';
 
-const PORT = 3999;
-const BASE = `http://localhost:${PORT}`;
-const srv = spawn(process.execPath, ['server/index.js'], {
-  env: { ...process.env, PORT: String(PORT), DB_FILE: ':memory:' }, stdio: ['ignore', 'pipe', 'inherit'],
-});
-await new Promise((r) => srv.stdout.once('data', r));
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const post = (path, body) => fetch(BASE + path, {
-  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-}).then(async (r) => ({ status: r.status, data: await r.json().catch(() => null) }));
-function ws(hello) {
-  const sock = new WebSocket(`ws://localhost:${PORT}/ws`);
-  sock.msgs = [];
-  sock.on('message', (d) => sock.msgs.push(JSON.parse(d)));
-  return new Promise((r) => sock.on('open', () => { sock.send(JSON.stringify(hello)); r(sock); }));
-}
-const waitFor = async (sock, pred, ms = 2000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) { const m = sock.msgs.find(pred); if (m) return m; await sleep(20); }
-  throw new Error('Timeout esperando mensaje');
-};
 let failed = 0;
-const check = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if (!cond) failed++; };
-
-try {
-  const bad = await post('/api/exams', { name: 'X', durationMin: 90, mode: 'pestana', tools: [{ url: 'ftp://x' }] });
-  check(bad.status === 400, 'rechaza URLs no http(s)');
-
-  const c = await post('/api/exams', {
-    name: 'Parcial 1', durationMin: 60, mode: 'pestana', toleranceSec: 3,
-    tools: [{ name: 'Herramienta A', url: 'https://example.com' }],
-  });
-  check(c.status === 201 && /^\d{6}$/.test(c.data.exam.code), 'crea examen con código de 6 cifras');
-  const { exam, teacherToken } = c.data;
-
-  const teacher = await ws({ t: 'hello', role: 'teacher', examId: exam.id, token: teacherToken });
-  await waitFor(teacher, (m) => m.t === 'snapshot');
-  check(true, 'profesor recibe snapshot');
-
-  const wrong = await post('/api/join', { name: 'Ana', code: '000000' === exam.code ? '111111' : '000000' });
-  check(wrong.status === 404, 'código incorrecto da 404');
-
-  const j = await post('/api/join', { name: 'Ana García', code: exam.code });
-  check(j.status === 201 && j.data.token, 'alumno se une');
-  await waitFor(teacher, (m) => m.t === 'student_joined');
-  check(true, 'profesor ve al alumno unirse');
-
-  const student = await ws({ t: 'hello', role: 'student', token: j.data.token });
-  await waitFor(student, (m) => m.t === 'exam' && m.exam.status === 'waiting');
-  await waitFor(teacher, (m) => m.t === 'presence' && m.online);
-  check(true, 'alumno en sala de espera y presencia online');
-
-  // Evento antes de empezar: no se registra
-  student.send(JSON.stringify({ t: 'event', type: 'away_start', clientId: 'pre', reason: 'x' }));
-  await sleep(100);
-  check(!teacher.msgs.some((m) => m.t === 'event'), 'no registra eventos antes de iniciar');
-
-  teacher.send(JSON.stringify({ t: 'start' }));
-  await waitFor(student, (m) => m.t === 'exam' && m.exam.status === 'active');
-  check(true, 'alumno recibe inicio del examen');
-
-  student.send(JSON.stringify({ t: 'event', type: 'exam_enter', clientId: 'e1', ts: Date.now() }));
-  student.send(JSON.stringify({ t: 'event', type: 'away_start', clientId: 'e2', ts: Date.now(), reason: 'Página oculta' }));
-  student.send(JSON.stringify({ t: 'event', type: 'away_end', clientId: 'e3', ts: Date.now(), durationMs: 1000 }));
-  student.send(JSON.stringify({ t: 'event', type: 'away_start', clientId: 'e4', ts: Date.now(), reason: 'Foco' }));
-  student.send(JSON.stringify({ t: 'event', type: 'away_end', clientId: 'e5', ts: Date.now(), durationMs: 8000 }));
-  student.send(JSON.stringify({ t: 'event', type: 'away_end', clientId: 'e5', ts: Date.now(), durationMs: 8000 })); // duplicado
-  student.send(JSON.stringify({ t: 'event', type: 'hack', clientId: 'e6' }));
-  await waitFor(student, (m) => m.t === 'ack' && m.clientId === 'e5');
-  await sleep(150);
-  const evs = teacher.msgs.filter((m) => m.t === 'event').map((m) => m.event);
-  check(evs.length === 5, `profesor recibe 5 eventos sin duplicados ni tipos inválidos (recibió ${evs.length})`);
-  check(evs.find((e) => e.client_id === 'e3')?.infraction === 0, '1 s fuera con tolerancia 3 s: no es incidencia');
-  check(evs.find((e) => e.client_id === 'e5')?.infraction === 1, '8 s fuera: sí es incidencia');
-
-  student.close();
-  await waitFor(teacher, (m) => m.t === 'event' && m.event.type === 'disconnected');
-  check(true, 'desconexión registrada');
-
-  await fetch(BASE + '/api/beacon', { method: 'POST', body: JSON.stringify({ token: j.data.token, clientId: 'b1' }) });
-  await waitFor(teacher, (m) => m.t === 'event' && m.event.type === 'page_leave');
-  check(true, 'sendBeacon registra cierre de página como incidencia');
-
-  const csv = await fetch(`${BASE}/api/exams/${exam.id}/export.csv?token=${teacherToken}`).then((r) => r.text());
-  check(csv.includes('Ana García') && csv.split('\r\n').length === 8, 'exporta CSV');
-  const csvNo = await fetch(`${BASE}/api/exams/${exam.id}/export.csv?token=mal`);
-  check(csvNo.status === 404, 'CSV sin token válido da 404');
-
-  teacher.send(JSON.stringify({ t: 'end' }));
-  await waitFor(teacher, (m) => m.t === 'exam' && m.exam.status === 'finished');
-  const late = await post('/api/join', { name: 'Tarde', code: exam.code });
-  check(late.status === 404, 'no se puede unir a un examen finalizado');
-  teacher.close();
-} catch (e) {
-  console.error(e); failed++;
-} finally {
-  srv.kill();
-  console.log(failed ? `\n${failed} comprobación(es) fallida(s)` : '\nTodo correcto');
-  process.exit(failed ? 1 : 0);
+const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FALLA'} ${msg}`); if (!cond) failed++; };
+const rejects = async (p, code) => { try { await p; return false; } catch (err) { return !code || err.code === code; } };
+async function waitFor(pred, ms = 5000) {
+  const until = Date.now() + ms;
+  while (Date.now() < until) { if (pred()) return true; await new Promise((r) => setTimeout(r, 50)); }
+  return false;
 }
+let n = 0;
+const id = () => `c${Date.now()}${n++}`;
+
+// ---------- Profesor ----------
+const prof = createBackend({ emulator: true, name: 'prof' });
+await prof.signInTeacher(prof.googleCredential(JSON.stringify({ sub: 'prof-1', email: 'prof@us.es', email_verified: true })));
+ok(prof.isTeacher(), 'el profesor entra con Google');
+
+ok(await rejects(prof.createExam({ name: 'X', durationMin: 60, mode: 'pestana', toleranceMs: 0, alertText: 'a',
+  tools: [{ name: 'x', url: 'javascript:alert(1)' }] })), 'rechaza URLs no http(s)');
+
+const exam = await prof.createExam({
+  name: 'Termodinámica', durationMin: 90, mode: 'pestana', toleranceMs: 3000, alertText: 'Registrado.',
+  tools: [{ name: 'fProperties', url: 'https://fproperties.jfcoronel.org/' }],
+});
+ok(/^\d{6}$/.test(exam.code), `crea examen con código de 6 cifras (${exam.code})`);
+ok((await prof.listMyExams()).some((e) => e.id === exam.id), 'aparece en "mis exámenes"');
+
+const seen = { meta: null, students: new Map(), online: new Map(), events: [] };
+prof.watchExam(exam.id, {
+  meta: (m) => { seen.meta = m; },
+  student: (s) => seen.students.set(s.id, s),
+  presence: (sid, on) => seen.online.set(sid, on),
+  event: (e) => seen.events.push(e),
+});
+ok(await waitFor(() => seen.meta?.status === 'waiting'), 'el panel recibe el examen en espera');
+
+// ---------- Alumno ----------
+const al = createBackend({ emulator: true, name: 'al1' });
+const wrong = exam.code === '000000' ? '000001' : '000000';
+ok(await rejects(al.joinExam(wrong, 'Ana'), 'code_not_found'), 'código incorrecto: no hay examen');
+const joined = await al.joinExam(exam.code, 'Ana López');
+ok(joined.examId === exam.id, 'el alumno se une');
+const alUid = al.currentUser().uid;
+ok(await waitFor(() => seen.students.get(alUid)?.name === 'Ana López'), 'el panel ve al alumno unirse');
+ok((await al.joinExam(exam.code, 'Otro nombre')).name === 'Ana López', 'unirse otra vez desde el mismo navegador no duplica');
+
+let alMeta = null;
+al.watchMeta(exam.id, (m) => { alMeta = m; });
+const pres = al.presence(exam.id, { newId: id });
+ok(await waitFor(() => seen.online.get(alUid) === true), 'presencia online en el panel');
+ok(await waitFor(() => alMeta?.tools?.[0]?.name === 'fProperties'), 'el alumno lee la configuración y las herramientas');
+
+ok(await rejects(al.sendEvent(exam.id, { clientId: id(), type: 'exam_enter' }), 'permission'), 'no registra eventos antes de iniciar');
+
+// ---------- Examen en curso ----------
+await prof.startExam(exam.id);
+ok(await waitFor(() => alMeta?.status === 'active' && alMeta.startedAt > 0), 'el alumno recibe el inicio del examen');
+pres.setActive(true);
+
+const now = Date.now();
+const dup = id();
+await al.sendEvent(exam.id, { clientId: id(), type: 'exam_enter', clientTs: now });
+await al.sendEvent(exam.id, { clientId: dup, type: 'away_start', reason: 'hidden', clientTs: now + 1 });
+await al.sendEvent(exam.id, { clientId: id(), type: 'away_end', reason: 'hidden', durationMs: 1000, clientTs: now + 2 });
+await al.sendEvent(exam.id, { clientId: id(), type: 'away_start', reason: 'blur', clientTs: now + 3 });
+await al.sendEvent(exam.id, { clientId: id(), type: 'away_end', reason: 'blur', durationMs: 8000, clientTs: now + 4 });
+ok(await rejects(al.sendEvent(exam.id, { clientId: dup, type: 'away_start' })), 'un reenvío con el mismo clientId no duplica');
+ok(await rejects(al.sendEvent(exam.id, { clientId: id(), type: 'hack' })), 'rechaza tipos de evento no válidos');
+ok(await waitFor(() => seen.events.length === 5), `el panel recibe 5 eventos (recibió ${seen.events.length})`);
+
+const ends = seen.events.filter((e) => e.type === 'away_end');
+ok(!isInfraction(ends.find((e) => e.durationMs === 1000), seen.meta), '1 s fuera con tolerancia 3 s: no es incidencia');
+ok(isInfraction(ends.find((e) => e.durationMs === 8000), seen.meta), '8 s fuera: sí es incidencia');
+ok(seen.events.every((e) => e.ts > 0 && e.studentId === alUid), 'cada evento lleva hora del servidor y alumno');
+
+// Cierre de página: sendBeacon a la API REST (aquí con fetch, que es lo que hace el navegador por debajo).
+ok(await waitFor(() => !!al.eventRestUrl(exam.id)), 'hay token para la API REST');
+const r = await fetch(al.eventRestUrl(exam.id), { method: 'POST', body: al.restEventBody({ type: 'page_leave', clientTs: Date.now() }) });
+ok(r.ok, `la API REST acepta page_leave (HTTP ${r.status})`);
+ok(await waitFor(() => seen.events.some((e) => e.type === 'page_leave' && isInfraction(e, seen.meta))), 'page_leave llega al panel como incidencia');
+
+// Pérdida de conexión: el servidor marca offline y registra 'disconnected'; al volver, 'reconnected'.
+al.debug.goOffline();
+ok(await waitFor(() => seen.online.get(alUid) === false), 'desconexión: presencia offline');
+ok(await waitFor(() => seen.events.some((e) => e.type === 'disconnected')), 'desconexión registrada por el servidor');
+al.debug.goOnline();
+ok(await waitFor(() => seen.online.get(alUid) === true), 'reconexión: presencia online');
+ok(await waitFor(() => seen.events.some((e) => e.type === 'reconnected')), 'reconexión registrada');
+
+// ---------- Otro profesor ----------
+const intruso = createBackend({ emulator: true, name: 'otro' });
+await intruso.signInTeacher(intruso.googleCredential(JSON.stringify({ sub: 'prof-2', email: 'otro@us.es', email_verified: true })));
+let denied = false;
+intruso.watchExam(exam.id, { error: () => { denied = true; } });
+ok(await waitFor(() => denied), 'otro profesor no puede ver el panel');
+ok(await rejects(intruso.finishExam(exam.id, exam.code)), 'otro profesor no puede finalizar el examen');
+
+// ---------- Fin ----------
+await prof.finishExam(exam.id, exam.code);
+ok(await waitFor(() => alMeta?.status === 'finished'), 'el alumno recibe el fin del examen');
+ok(await rejects(al.sendEvent(exam.id, { clientId: id(), type: 'away_start' })), 'no registra eventos con el examen finalizado');
+const al2 = createBackend({ emulator: true, name: 'al2' });
+ok(await rejects(al2.joinExam(exam.code, 'Luis')), 'no se puede unir a un examen finalizado');
+
+await prof.deleteExam({ ...seen.meta });
+ok(await waitFor(() => seen.meta === null), 'el profesor borra el examen');
+ok(!(await prof.listMyExams()).some((e) => e.id === exam.id), 'desaparece de "mis exámenes"');
+
+console.log(failed ? `\n${failed} fallo(s)` : '\nTodo correcto');
+process.exit(failed ? 1 : 0);

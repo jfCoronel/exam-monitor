@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Foco Examen</title>
-  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="styles.css">
   <style>
     .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 32px; }
     .choices a { display: block; text-decoration: none; color: inherit; }
@@ -18,13 +18,21 @@
   </style>
 </head>
 <body>
+  <div class="lang-switch lang-float"></div>
   <main class="page">
-    <h1>Foco Examen</h1>
-    <p class="muted">Supervisa que los alumnos usen solo las herramientas permitidas durante un examen presencial.</p>
+    <h1 data-i18n="app.name">Foco Examen</h1>
+    <p class="muted" data-i18n="home.tagline">Supervisa que los alumnos usen solo las herramientas permitidas durante un examen presencial.</p>
     <div class="choices">
-      <a href="/alumno/"><div class="sheet"><h2>Soy alumno</h2><p class="muted small">Únete con el código que te dé el profesor.</p></div></a>
-      <a href="/profesor/"><div class="sheet"><h2>Soy profesor</h2><p class="muted small">Crea un examen y sigue la clase en directo.</p></div></a>
+      <a href="alumno/"><div class="sheet"><h2 data-i18n="home.student">Soy alumno</h2><p class="muted small" data-i18n="home.studentText">Únete con el código que te dé el profesor.</p></div></a>
+      <a href="profesor/"><div class="sheet"><h2 data-i18n="home.teacher">Soy profesor</h2><p class="muted small" data-i18n="home.teacherText">Crea un examen y sigue la clase en directo.</p></div></a>
     </div>
   </main>
+  <script type="module">
+    import { t, mountLangSwitch } from './i18n/index.js';
+    mountLangSwitch();
+    const title = () => { document.title = t('app.name'); };
+    title();
+    document.addEventListener('langchange', title);
+  </script>
 </body>
 </html>

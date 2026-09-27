@@ -1,101 +1,111 @@
-import { $, esc, connect, fmtClock, fmtDur, fmtTime } from '/common.js';
-import { findMyExam } from '/profesor/store.js';
+import { $, esc, fmtClock, fmtDur, fmtTime, eventTime, isInfraction, isNotable, eventText, reasonText } from '../common.js';
+import { t, getLang, locale, mountLangSwitch } from '../i18n/index.js';
+import { createBackend } from '../backend.js';
 
+const be = createBackend();
 const examId = new URLSearchParams(location.search).get('exam');
-const mine = examId && findMyExam(examId);
-if (!mine) {
-  $('#no-access').hidden = false;
-  throw new Error('Sin token de profesor para este examen');
-}
-$('#panel').hidden = false;
 
 // ---------- Estado ----------
 let exam = null;
 let clockOffset = 0;
 let selectedId = null;
-/** id -> { id, name, joinedAt, online, entered, away: {since, reason}|null, events: [] } */
+let stopWatch = null;
+/** id -> { id, name, joinedAt, online, entered, away: {since, reason}|null, events: [] (orden cronológico) } */
 const students = new Map();
-const feed = []; // incidencias recientes de toda la clase
 
-const EVENT_LABEL = {
-  exam_enter: () => 'Entró al examen',
-  away_start: (e) => `Salió: ${e.reason || 'perdió el foco'}`,
-  away_end: (e) => `Volvió tras ${fmtDur(e.duration_ms)}`,
-  fullscreen_exit: () => 'Salió de pantalla completa',
-  page_leave: () => 'Cerró o recargó la página',
-  disconnected: () => 'Se desconectó',
-  reconnected: () => 'Se volvió a conectar',
-};
-const eventTime = (e) => e.client_ts ?? e.ts;
-const isNotable = (e) => e.infraction || ['page_leave', 'disconnected', 'fullscreen_exit'].includes(e.type);
+function showState(state) {
+  $('#loading').hidden = state !== 'loading';
+  $('#no-access').hidden = state !== 'no-access';
+  $('#panel').hidden = state !== 'panel';
+}
 
 function upsertStudent(s) {
   if (!students.has(s.id)) students.set(s.id, { ...s, online: false, entered: false, away: null, events: [] });
   return students.get(s.id);
 }
 
+/** Inserta en orden cronológico y recalcula el estado: los eventos pueden llegar desordenados tras una reconexión. */
 function applyEvent(ev) {
-  const s = students.get(ev.student_id);
-  if (!s) return;
-  s.events.push(ev);
-  if (ev.type === 'exam_enter') s.entered = true;
-  if (ev.type === 'away_start') s.away = { since: eventTime(ev), reason: ev.reason };
-  if (ev.type === 'away_end' || ev.type === 'page_leave') s.away = null;
-  if (isNotable(ev)) { feed.unshift(ev); feed.length = Math.min(feed.length, 50); }
+  const s = students.get(ev.studentId);
+  if (!s || s.events.some((e) => e.id === ev.id)) return;
+  const i = s.events.findIndex((e) => eventTime(e) > eventTime(ev));
+  s.events.splice(i < 0 ? s.events.length : i, 0, ev);
+  s.entered = s.events.some((e) => e.type === 'exam_enter');
+  s.away = null;
+  for (const e of s.events) {
+    if (e.type === 'away_start') s.away = { since: eventTime(e), reason: e.reason };
+    if (e.type === 'away_end' || e.type === 'page_leave') s.away = null;
+  }
 }
 
-// ---------- Conexión ----------
-const conn = connect({
-  hello: () => ({ t: 'hello', role: 'teacher', examId, token: mine.token }),
-  onStatus(st) {
-    $('#p-conn').hidden = st === 'online';
-    if (st === 'unauthorized') { $('#panel').hidden = true; $('#no-access').hidden = false; }
-  },
-  onMessage(m) {
-    if (m.t === 'snapshot') {
-      students.clear(); feed.length = 0;
-      exam = m.exam; clockOffset = m.serverNow - Date.now();
-      m.students.forEach(upsertStudent);
-      m.events.forEach(applyEvent);
-      m.online.forEach((id) => { const s = students.get(id); if (s) s.online = true; });
+/** Incidencias recientes de toda la clase, las más nuevas primero. */
+const feed = () => [...students.values()].flatMap((s) => s.events.filter((e) => isNotable(e, exam)))
+  .sort((a, b) => eventTime(b) - eventTime(a)).slice(0, 30);
+
+// ---------- Acceso y suscripción ----------
+if (!examId) showState('no-access');
+
+be.onUser((user) => {
+  if (!examId) return;
+  if (!be.isTeacher(user)) { stopWatch?.(); stopWatch = null; return showState('no-access'); }
+  if (stopWatch) return;
+  students.clear();
+  stopWatch = be.watchExam(examId, {
+    meta(m) {
+      if (!m) { showState('no-access'); return; }
+      exam = m;
+      showState('panel');
       renderHeader();
-    } else if (m.t === 'exam') {
-      exam = m.exam; clockOffset = m.serverNow - Date.now();
-      renderHeader();
-    } else if (m.t === 'student_joined') {
-      upsertStudent(m.student);
-    } else if (m.t === 'presence') {
-      const s = students.get(m.studentId); if (s) s.online = m.online;
-    } else if (m.t === 'event') {
-      applyEvent(m.event);
-    }
-    renderAll();
-  },
+      renderAll();
+    },
+    student(s) { upsertStudent(s); renderAll(); },
+    presence(id, online) { const s = students.get(id); if (s) { s.online = online; renderAll(); } },
+    event(ev) { applyEvent(ev); renderAll(); },
+    error() { stopWatch?.(); stopWatch = null; showState('no-access'); },
+  });
 });
 
+$('#btn-signin').addEventListener('click', async (e) => {
+  const errEl = $('#signin-error');
+  errEl.hidden = true;
+  try { await be.signInTeacher(); } catch (err) {
+    errEl.textContent = t(`err.${err.code || 'network'}`);
+    errEl.hidden = false;
+  }
+});
+
+be.onServerOffset((ms) => { clockOffset = ms; });
+be.onConnected((online) => { $('#p-conn').hidden = online; });
+
 // ---------- Cabecera y acciones ----------
-const joinUrl = () => `${location.origin}/alumno/?code=${exam.code}`;
+const joinUrl = () => new URL(`../alumno/?code=${exam.code}`, location.href).href;
+const joinUrlShort = () => new URL('../alumno/', location.href).href.replace(/^https?:\/\//, '').replace(/\/$/, '');
 const codeBoxes = (code) => [...code].map((d) => `<span>${d}</span>`).join('');
 
 function renderHeader() {
-  document.title = `${exam.name} | Foco Examen`;
+  if (!exam) return;
+  document.title = `${exam.name} | ${t('app.name')}`;
   $('#p-name').textContent = exam.name;
-  const st = { waiting: ['En espera', 'pen'], active: ['En curso', 'ok'], finished: ['Finalizado', ''] }[exam.status];
-  $('#p-status').textContent = st[0];
+  const st = { waiting: ['status.waiting', 'pen'], active: ['status.active', 'ok'], finished: ['status.finished', ''] }[exam.status];
+  $('#p-status').textContent = t(st[0]);
   $('#p-status').className = `pill ${st[1]}`;
-  $('#p-meta').textContent = `${exam.durationMin} min, ${exam.tools.length} herramienta${exam.tools.length === 1 ? '' : 's'}, ` +
-    (exam.mode === 'pestana' ? 'dentro de la página' : 'en ventana propia') +
-    (exam.toleranceMs ? `, tolerancia ${fmtDur(exam.toleranceMs)}` : '');
+  $('#p-meta').textContent = [
+    t('panel.metaDuration', { min: exam.durationMin }),
+    t('panel.metaTools', { count: exam.tools.length }),
+    t(exam.mode === 'pestana' ? 'panel.metaTab' : 'panel.metaWindow'),
+    exam.toleranceMs ? t('panel.metaTolerance', { dur: fmtDur(exam.toleranceMs) }) : null,
+  ].filter(Boolean).join(', ');
 
   $('#btn-start').hidden = exam.status !== 'waiting';
   $('#btn-end').hidden = exam.status !== 'active';
   $('#p-clock').hidden = exam.status !== 'active';
-  $('#btn-csv').href = `/api/exams/${encodeURIComponent(exam.id)}/export.csv?token=${encodeURIComponent(mine.token)}`;
+  $('#btn-project').hidden = exam.status === 'finished';
+  document.querySelector('.join-strip').hidden = exam.status === 'finished';
 
   $('#p-code').innerHTML = codeBoxes(exam.code);
   $('#pr-code').innerHTML = codeBoxes(exam.code);
-  $('#p-url').textContent = `${location.host}/alumno`;
-  $('#pr-url').textContent = `${location.host}/alumno`;
+  $('#p-url').textContent = joinUrlShort();
+  $('#pr-url').textContent = joinUrlShort();
   drawQr('#p-qr', 96); drawQr('#pr-qr', 320);
 }
 
@@ -108,13 +118,21 @@ function drawQr(sel, size) {
   el.dataset.code = exam.code;
 }
 
-$('#btn-start').addEventListener('click', () => sendCmd('start'));
-$('#btn-end').addEventListener('click', () => {
-  if (confirm('¿Finalizar el examen? Los alumnos dejarán de estar supervisados.')) sendCmd('end');
-});
-function sendCmd(t) {
-  if (!conn.send({ t })) alert('El panel no está conectado. Espera a que se reconecte y vuelve a intentarlo.');
+async function run(action) {
+  try { await action(); } catch (err) { alert(t(`err.${err.code || 'network'}`)); }
 }
+$('#btn-start').addEventListener('click', () => run(() => be.startExam(exam.id)));
+$('#btn-end').addEventListener('click', () => {
+  if (confirm(t('panel.confirmEnd'))) run(() => be.finishExam(exam.id, exam.code));
+});
+$('#btn-delete').addEventListener('click', () => {
+  if (!confirm(t('panel.confirmDelete'))) return;
+  run(async () => {
+    stopWatch?.(); stopWatch = null;
+    await be.deleteExam(exam);
+    location.href = './';
+  });
+});
 
 $('#btn-project').addEventListener('click', () => {
   $('#projector').hidden = false;
@@ -124,23 +142,44 @@ const closeProjector = () => { $('#projector').hidden = true; if (document.fulls
 $('#pr-close').addEventListener('click', closeProjector);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#projector').hidden) closeProjector(); });
 
+// ---------- CSV (se genera en el navegador) ----------
+$('#btn-csv').addEventListener('click', () => {
+  const sep = getLang() === 'es' ? ';' : ','; // Excel en español espera ';'
+  const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const fmt = (ms) => new Date(ms).toLocaleString(locale());
+  const rows = [[t('csv.student'), t('csv.event'), t('csv.type'), t('csv.time'), t('csv.duration'), t('csv.reason'), t('csv.infraction')]];
+  const all = [...students.values()].flatMap((s) => s.events.map((e) => ({ s, e })))
+    .sort((a, b) => eventTime(a.e) - eventTime(b.e));
+  for (const { s, e } of all) {
+    rows.push([s.name, eventText(e), e.type, fmt(eventTime(e)),
+      e.durationMs != null ? (e.durationMs / 1000).toFixed(1) : '',
+      e.type.startsWith('away') ? reasonText(e.reason) : '', isInfraction(e, exam) ? t('csv.yes') : '']);
+  }
+  const csv = '﻿' + rows.map((r) => r.map(cell).join(sep)).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `${t('csv.file')}-${exam.code}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
 // ---------- Estado derivado de cada alumno ----------
 function summarize(s) {
   const now = Date.now() + clockOffset;
-  const infractions = s.events.filter((e) => e.infraction).length;
-  let awayMs = s.events.filter((e) => e.type === 'away_end').reduce((a, e) => a + (e.duration_ms || 0), 0);
-  const awayNow = s.away ? now - s.away.since : 0;
+  const infractions = s.events.filter((e) => isInfraction(e, exam)).length;
+  let awayMs = s.events.filter((e) => e.type === 'away_end').reduce((a, e) => a + (e.durationMs || 0), 0);
+  const awayNow = s.away ? Math.max(0, now - s.away.since) : 0;
   awayMs += awayNow;
 
-  let cls = '', label = 'En espera', pill = 'pen';
-  if (exam?.status === 'finished') { label = 'Finalizado'; pill = ''; }
-  else if (!s.online) { cls = 'st-off'; label = 'Sin conexión'; pill = 'warn'; }
+  let cls = '', label = t('st.waiting'), pill = 'pen';
+  if (exam?.status === 'finished') { label = t('st.finished'); pill = ''; }
+  else if (!s.online) { cls = 'st-off'; label = t('st.offline'); pill = 'warn'; }
   else if (s.away) {
     const long = awayNow >= (exam?.toleranceMs || 0);
     cls = long ? 'st-away' : 'st-away-short';
-    label = `Fuera ${fmtDur(awayNow)}`; pill = long ? 'bad pulse' : 'warn';
-  } else if (s.entered && exam?.status === 'active') { cls = 'st-ok'; label = 'En el examen'; pill = 'ok'; }
-  else if (exam?.status === 'active') { label = 'Aún no ha entrado'; pill = 'warn'; }
+    label = t('st.away', { dur: fmtDur(awayNow) }); pill = long ? 'bad pulse' : 'warn';
+  } else if (s.entered && exam?.status === 'active') { cls = 'st-ok'; label = t('st.in'); pill = 'ok'; }
+  else if (exam?.status === 'active') { label = t('st.notEntered'); pill = 'warn'; }
   return { infractions, awayMs, cls, label, pill };
 }
 
@@ -157,9 +196,9 @@ function renderAll() {
   $('#c-flag').textContent = list.filter(({ sum }) => sum.infractions).length;
 
   // Orden: primero quien está fuera ahora, luego sin conexión, luego por nº de incidencias, luego nombre.
-  const rank = ({ s, sum }) => (s.away ? 0 : !s.online ? 1 : 2);
+  const rank = ({ s }) => (s.away ? 0 : !s.online ? 1 : 2);
   list.sort((a, b) => rank(a) - rank(b) || b.sum.infractions - a.sum.infractions ||
-    a.s.name.localeCompare(b.s.name, 'es', { sensitivity: 'base' }));
+    a.s.name.localeCompare(b.s.name, locale(), { sensitivity: 'base' }));
 
   const shown = onlyFlagged ? list.filter(({ sum }) => sum.infractions) : list;
   $('#grid-empty').hidden = list.length > 0;
@@ -167,15 +206,16 @@ function renderAll() {
     <button class="card ${sum.cls}" data-id="${esc(s.id)}" aria-pressed="${s.id === selectedId}">
       <span class="c-name">${esc(s.name)}</span>
       <span class="c-line"><span class="pill ${sum.pill}">${esc(sum.label)}</span>
-        ${sum.infractions ? `<span class="flags">${sum.infractions} incid.</span>` : ''}</span>
-      ${sum.awayMs ? `<span class="c-line"><span>Tiempo fuera total</span><span>${fmtDur(sum.awayMs)}</span></span>` : ''}
+        ${sum.infractions ? `<span class="flags">${esc(t('panel.infractionsShort', { count: sum.infractions }))}</span>` : ''}</span>
+      ${sum.awayMs ? `<span class="c-line"><span>${esc(t('panel.awayTotal'))}</span><span>${fmtDur(sum.awayMs)}</span></span>` : ''}
     </button>`).join('');
 
-  $('#feed-empty').hidden = feed.length > 0;
-  $('#feed').innerHTML = feed.slice(0, 30).map((e) => `
+  const items = feed();
+  $('#feed-empty').hidden = items.length > 0;
+  $('#feed').innerHTML = items.map((e) => `
     <li><time>${fmtTime(eventTime(e))}</time>
-      <span><button data-id="${esc(e.student_id)}">${esc(students.get(e.student_id)?.name || '?')}</button>
-      <span class="${e.infraction ? 'inf' : 'soft'}">${esc(EVENT_LABEL[e.type]?.(e) || e.type)}</span></span></li>`).join('');
+      <span><button data-id="${esc(e.studentId)}">${esc(students.get(e.studentId)?.name || '?')}</button>
+      <span class="${isInfraction(e, exam) ? 'inf' : 'soft'}">${esc(eventText(e))}</span></span></li>`).join('');
 
   renderStudent();
 }
@@ -187,12 +227,13 @@ function renderStudent() {
   if (!s) return;
   const sum = summarize(s);
   $('#s-name').textContent = s.name;
-  $('#s-summary').textContent = `Unido a las ${fmtTime(s.joinedAt)}. ${sum.infractions} incidencia${sum.infractions === 1 ? '' : 's'}, ` +
-    `${fmtDur(sum.awayMs)} fuera en total. Estado: ${sum.label.toLowerCase()}.`;
+  $('#s-summary').textContent = t('panel.studentSummary', {
+    time: fmtTime(s.joinedAt), count: sum.infractions, dur: fmtDur(sum.awayMs), state: sum.label.toLowerCase(),
+  });
   $('#s-log').innerHTML = [...s.events].reverse().map((e) => `
     <li><time>${fmtTime(eventTime(e))}</time>
-      <span class="${e.infraction ? 'inf' : isNotable(e) ? 'soft' : ''}">${esc(EVENT_LABEL[e.type]?.(e) || e.type)}</span></li>`).join('')
-    || '<li><span></span><span class="muted">Sin eventos todavía.</span></li>';
+      <span class="${isInfraction(e, exam) ? 'inf' : isNotable(e, exam) ? 'soft' : ''}">${esc(eventText(e))}</span></li>`).join('')
+    || `<li><span></span><span class="muted">${esc(t('panel.noEvents'))}</span></li>`;
 }
 
 document.addEventListener('click', (e) => {
@@ -209,7 +250,11 @@ setInterval(() => {
   if (!exam) return;
   if (exam.status === 'active' && exam.startedAt) {
     const left = exam.startedAt + exam.durationMin * 60_000 - (Date.now() + clockOffset);
-    $('#p-clock').textContent = left > 0 ? fmtClock(left) : 'Tiempo agotado';
+    $('#p-clock').textContent = left > 0 ? fmtClock(left) : t('panel.timeUp');
   }
   if ([...students.values()].some((s) => s.away)) renderAll();
 }, 1000);
+
+// ---------- Idioma ----------
+mountLangSwitch();
+document.addEventListener('langchange', () => { renderHeader(); renderAll(); });

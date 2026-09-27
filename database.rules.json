@@ -87,6 +87,7 @@
 
         "events": {
           "$uid": {
+            ".indexOn": ["ts"],
             "$clientId": {
               ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('exams/' + $examId + '/students/' + $uid).exists() && root.child('exams/' + $examId + '/meta/status').val() === 'active'",
               ".validate": "$clientId.matches(/^[A-Za-z0-9_-]{1,64}$/) && newData.hasChildren(['type', 'ts'])",

@@ -1,10 +1,12 @@
 // Service worker mínimo: hace la PWA instalable y permite abrirla aunque la red falle un momento.
-// Estrategia: red primero, caché como respaldo. La API y el WebSocket nunca se cachean.
-const CACHE = 'foco-examen-v1';
+// Estrategia: red primero, caché como respaldo. Firebase (otro origen) nunca pasa por aquí.
+// Rutas relativas a este fichero, para funcionar igual en un dominio propio o en un subdirectorio.
+const CACHE = 'exam-monitor-v2';
 const SHELL = [
-  '/alumno/', '/alumno/alumno.js', '/alumno/alumno.css',
-  '/common.js', '/styles.css', '/manifest.webmanifest',
-  '/icons/icon.svg', '/icons/icon-192.png',
+  './alumno/', './alumno/alumno.js', './alumno/alumno.css',
+  './common.js', './backend.js', './firebase-config.js', './styles.css', './manifest.webmanifest',
+  './i18n/index.js', './i18n/es.js', './i18n/en.js',
+  './icons/icon.svg', './icons/icon-192.png',
 ];
 
 self.addEventListener('install', (e) => {
@@ -21,7 +23,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/')) return;
+  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   e.respondWith(
     fetch(e.request)
       .then((res) => {

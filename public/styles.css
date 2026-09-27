@@ -150,3 +150,12 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   .pulse { animation: pulse 1.2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .55; } }
 }
+
+/* ---------- Selector de idioma y cabecera ---------- */
+.lang-switch { display: inline-flex; gap: 2px; }
+.lang-switch button { padding: 4px 8px; font-size: .8125rem; border-color: var(--line); }
+.lang-switch button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.lang-float { position: fixed; top: 12px; right: 12px; z-index: 5; }
+body:has(#view-exam:not([hidden])) .lang-float { display: none; }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+.topbar .brand { font-weight: 700; text-decoration: none; color: var(--ink); }

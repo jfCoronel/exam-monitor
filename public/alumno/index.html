@@ -5,31 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Foco Examen</title>
   <meta name="theme-color" content="#14233a">
-  <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/alumno/alumno.css">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="alumno.css">
+  <script type="importmap">
+    { "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js",
+      "firebase/database": "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js"
+    } }
+  </script>
 </head>
 <body>
+  <div class="lang-switch lang-float"></div>
+
+  <!-- 0. Cargando la sesión guardada -->
+  <main class="page" id="view-loading">
+    <p class="muted" data-i18n="common.loading">Cargando…</p>
+  </main>
+
   <!-- 1. Unirse -->
   <main class="page" id="view-join" hidden>
     <form class="sheet stack" id="join-form" novalidate>
-      <h1>Unirse al examen</h1>
+      <h1 data-i18n="join.title">Unirse al examen</h1>
       <div>
-        <label for="join-name">Nombre y apellidos</label>
+        <label for="join-name" data-i18n="join.name">Nombre y apellidos</label>
         <input type="text" id="join-name" autocomplete="name" required maxlength="80">
       </div>
       <div>
-        <label for="join-code">Código del examen <span class="hint">Las 6 cifras que muestra el profesor</span></label>
+        <label for="join-code"><span data-i18n="join.code">Código del examen</span> <span class="hint" data-i18n="join.codeHint">Las 6 cifras que muestra el profesor</span></label>
         <input type="text" id="join-code" class="code-input" inputmode="numeric" autocomplete="off" maxlength="6" pattern="\d{6}" required>
       </div>
       <p class="error" id="join-error" role="alert" hidden></p>
-      <button type="submit" class="btn-primary btn-big">Unirme</button>
-      <p class="muted small">Mientras dure el examen, esta página registra cada vez que sales de ella. El profesor ve esos registros.</p>
+      <button type="submit" class="btn-primary btn-big" data-i18n="join.submit">Unirme</button>
+      <p class="muted small" data-i18n="join.notice">Mientras dure el examen, esta página registra cada vez que sales de ella. El profesor ve esos registros.</p>
     </form>
   </main>
 
@@ -39,19 +53,19 @@
       <p class="muted" id="wait-hello"></p>
       <h1 id="wait-exam-name"></h1>
       <div id="wait-waiting">
-        <p><span class="pill pen pulse">Esperando a que el profesor empiece el examen</span></p>
+        <p><span class="pill pen pulse" data-i18n="wait.waiting">Esperando a que el profesor empiece el examen</span></p>
       </div>
       <div id="wait-ready" hidden>
-        <p><span class="pill ok">El examen ha empezado</span></p>
-        <p>Al entrar, la página pasará a pantalla completa. No salgas de ella hasta que termine el examen.</p>
-        <button class="btn-primary btn-big" id="btn-enter">Entrar al examen</button>
+        <p><span class="pill ok" data-i18n="wait.started">El examen ha empezado</span></p>
+        <p data-i18n="wait.enterHint">Al entrar, la página pasará a pantalla completa. No salgas de ella hasta que termine el examen.</p>
+        <button class="btn-primary btn-big" id="btn-enter" data-i18n="wait.enter">Entrar al examen</button>
       </div>
       <div>
-        <h3>Herramientas permitidas</h3>
+        <h3 data-i18n="wait.tools">Herramientas permitidas</h3>
         <ul id="wait-tools" class="tool-list"></ul>
       </div>
       <div id="wait-rules">
-        <h3>Normas</h3>
+        <h3 data-i18n="wait.rules">Normas</h3>
         <ul class="small" id="wait-rules-list"></ul>
       </div>
     </div>
@@ -61,14 +75,14 @@
   <div id="view-exam" hidden>
     <header class="exam-bar">
       <div class="exam-bar-name"><strong id="bar-exam"></strong> <span class="muted small" id="bar-student"></span></div>
-      <nav class="tool-tabs" id="tool-tabs" aria-label="Herramientas"></nav>
+      <nav class="tool-tabs" id="tool-tabs" data-i18n-attr="aria-label:exam.toolsNav"></nav>
       <div class="row">
-        <span class="pill" id="bar-conn">Conectado</span>
-        <span class="clock" id="bar-clock" aria-label="Tiempo restante">--:--</span>
+        <span class="pill" id="bar-conn"></span>
+        <span class="clock" id="bar-clock" data-i18n-attr="aria-label:exam.timeLeft">--:--</span>
       </div>
     </header>
     <div class="fs-banner" id="fs-banner" hidden>
-      Has salido de pantalla completa. <button id="btn-fs">Volver a pantalla completa</button>
+      <span data-i18n="exam.fsOut">Has salido de pantalla completa.</span> <button id="btn-fs" data-i18n="exam.fsBack">Volver a pantalla completa</button>
     </div>
     <section class="tool-area" id="tool-area"></section>
   </div>
@@ -76,22 +90,22 @@
   <!-- 4. Fin -->
   <main class="page" id="view-done" hidden>
     <div class="sheet stack">
-      <h1>Examen finalizado</h1>
-      <p>El profesor ha cerrado el examen. Ya puedes cerrar esta ventana.</p>
-      <button id="btn-leave">Salir</button>
+      <h1 data-i18n="done.title">Examen finalizado</h1>
+      <p data-i18n="done.text">El profesor ha cerrado el examen. Ya puedes cerrar esta ventana.</p>
+      <button id="btn-leave" data-i18n="done.leave">Salir</button>
     </div>
   </main>
 
   <!-- Aviso al volver tras salir -->
   <div class="alert-overlay" id="alert" role="alertdialog" aria-modal="true" aria-labelledby="alert-title" hidden>
     <div class="alert-box">
-      <h2 id="alert-title">Has salido del examen</h2>
+      <h2 id="alert-title" data-i18n="alert.title">Has salido del examen</h2>
       <p id="alert-text"></p>
       <p class="alert-dur" id="alert-dur"></p>
-      <button class="btn-primary btn-big" id="btn-alert-ok">Volver al examen</button>
+      <button class="btn-primary btn-big" id="btn-alert-ok" data-i18n="alert.back">Volver al examen</button>
     </div>
   </div>
 
-  <script type="module" src="/alumno/alumno.js"></script>
+  <script type="module" src="alumno.js"></script>
 </body>
 </html>
