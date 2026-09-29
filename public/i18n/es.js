@@ -44,6 +44,11 @@ export default {
   'exam.windowTitle': 'Herramientas del examen',
   'exam.windowText': 'Cada herramienta se abre en su propia ventana. Mantén esta ventana visible (por ejemplo, a un lado de la pantalla): el tiempo que pases fuera de ella queda registrado.',
   'exam.open': 'Abrir {name}',
+  'exam.submit': 'Terminar examen',
+  'submit.title': '¿Has terminado el examen?',
+  'submit.text': 'Se registrará la hora a la que terminas y la página dejará de supervisarse. No podrás volver al examen.',
+  'submit.confirm': 'Sí, he terminado',
+  'submit.cancel': 'Seguir con el examen',
 
   'conn.online': 'Conectado',
   'conn.offline': 'Sin conexión',
@@ -64,6 +69,8 @@ export default {
   'done.title': 'Examen finalizado',
   'done.text': 'El profesor ha cerrado el examen. Ya puedes cerrar esta ventana.',
   'done.leave': 'Salir',
+  'done.submittedTitle': 'Has terminado el examen',
+  'done.submittedText': 'Tu entrega ha quedado registrada a las {time}. Ya puedes cerrar esta ventana.',
 
   // ---------- Profesor ----------
   'auth.title': 'Acceso del profesor',
@@ -125,6 +132,7 @@ export default {
   'panel.cAway': 'fuera ahora',
   'panel.cOff': 'sin conexión',
   'panel.cFlag': 'con incidencias',
+  'panel.cDone': 'han terminado',
   'panel.students': 'Alumnos',
   'panel.onlyFlagged': 'Solo con incidencias',
   'panel.empty': 'Todavía no se ha unido nadie. Proyecta el código para que los alumnos entren.',
@@ -146,6 +154,7 @@ export default {
   'st.away': 'Fuera {dur}',
   'st.in': 'En el examen',
   'st.notEntered': 'Aún no ha entrado',
+  'st.submitted': 'Terminó {time}',
 
   'ev.exam_enter': 'Entró al examen',
   'ev.away_start': 'Salió: {reason}',
@@ -154,6 +163,7 @@ export default {
   'ev.page_leave': 'Cerró o recargó la página',
   'ev.disconnected': 'Se desconectó',
   'ev.reconnected': 'Se volvió a conectar',
+  'ev.exam_submit': 'Terminó el examen',
 
   'reason.blur': 'la ventana del examen perdió el foco',
   'reason.hidden': 'página oculta (otra pestaña, ventana minimizada…)',

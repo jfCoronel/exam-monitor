@@ -1,4 +1,4 @@
-import { $, esc, uid, fmtClock, fmtDur, mountFooter } from '../common.js';
+import { $, esc, uid, fmtClock, fmtDur, fmtTime, mountFooter } from '../common.js';
 import { t, mountLangSwitch } from '../i18n/index.js';
 import { createBackend } from '../backend.js';
 
@@ -15,12 +15,14 @@ let stopMeta = null;
 let presence = null;
 let clockOffset = 0;      // hora del servidor - Date.now()
 let entered = false;      // el alumno ha pulsado "Entrar al examen" en esta carga de página
+let submittedAt = null;   // hora a la que el alumno terminó su examen (no se puede deshacer)
 let away = null;          // { since, reason } mientras está fuera
 let lastToolOpen = null;  // modo ventana: { name, at }
 let queue = [];           // eventos pendientes de confirmar por el servidor (sobreviven a recargas)
 
 function readJSON(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
 const queueKey = () => `examMonitor.cola.${session?.examId}`;
+const submitKey = () => `examMonitor.entregado.${session?.examId}`;
 const saveQueue = () => { if (session) localStorage.setItem(queueKey(), JSON.stringify(queue)); };
 const serverNow = () => Date.now() + clockOffset;
 
@@ -32,7 +34,7 @@ function show(name) {
 
 function render() {
   if (!session || !exam) return show(session ? 'loading' : 'join');
-  if (exam.status === 'finished') { stopMonitoring(); return show('done'); }
+  if (submittedAt || exam.status === 'finished') { stopMonitoring(); renderDone(); return show('done'); }
   if (exam.status === 'active' && entered) { renderExamBar(); return show('exam'); }
 
   show('wait');
@@ -49,6 +51,11 @@ function render() {
     exam.toleranceMs ? t('rules.awayTolerance', { dur: fmtDur(exam.toleranceMs) }) : t('rules.away'),
   ];
   $('#wait-rules-list').innerHTML = rules.map((r) => `<li>${esc(r)}</li>`).join('');
+}
+
+function renderDone() {
+  $('#done-title').textContent = t(submittedAt ? 'done.submittedTitle' : 'done.title');
+  $('#done-text').textContent = submittedAt ? t('done.submittedText', { time: fmtTime(submittedAt) }) : t('done.text');
 }
 
 function renderExamBar() {
@@ -93,7 +100,7 @@ function startSession() {
     if (!m) return resetSession(); // el profesor ha borrado el examen
     const wasActive = exam?.status === 'active';
     exam = m;
-    presence.setActive(exam.status === 'active');
+    presence.setActive(exam.status === 'active' && !submittedAt);
     if (exam.status === 'active' && !wasActive && entered) buildToolArea();
     render();
   }, (err) => { if (err.code === 'permission') resetSession(); });
@@ -135,9 +142,9 @@ function deliver(ev) {
 function resetSession() {
   stopSession();
   stopMonitoring();
-  if (session) localStorage.removeItem(queueKey());
+  if (session) { localStorage.removeItem(queueKey()); localStorage.removeItem(submitKey()); }
   localStorage.removeItem(SESSION_KEY);
-  session = null; exam = null; entered = false;
+  session = null; exam = null; entered = false; submittedAt = null;
   render();
 }
 
@@ -155,6 +162,24 @@ async function goFullscreen() {
   try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); }
   catch { /* navegador sin soporte o bloqueado: seguimos igualmente */ }
 }
+
+// ---------- Terminar el examen ----------
+// Confirmación dentro de la página: un confirm() del navegador podría sacarle de pantalla completa.
+$('#btn-submit').addEventListener('click', () => {
+  $('#submit-dialog').hidden = false;
+  $('#btn-submit-no').focus();
+});
+$('#btn-submit-no').addEventListener('click', () => { $('#submit-dialog').hidden = true; });
+$('#btn-submit-yes').addEventListener('click', () => {
+  $('#submit-dialog').hidden = true;
+  submittedAt = serverNow();
+  localStorage.setItem(submitKey(), String(submittedAt));
+  stopMonitoring();              // antes de salir de pantalla completa, para no registrarlo como salida
+  presence?.setActive(false);    // ya no se registra 'disconnected' al cerrar
+  be.submitExam(session.examId, { clientId: uid(), clientTs: submittedAt }).catch(() => {});
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  render();
+});
 
 // ---------- Herramientas ----------
 function buildToolArea() {
@@ -216,7 +241,7 @@ function buildToolArea() {
 // así que usar la herramienta incrustada NO cuenta como salir. Los eventos blur/visibilitychange
 // solo adelantan la comprobación para que sea inmediata.
 let pollTimer = null;
-const monitoring = () => entered && exam?.status === 'active';
+const monitoring = () => entered && !submittedAt && exam?.status === 'active';
 
 function startMonitoring() {
   if (pollTimer) return;
@@ -379,5 +404,6 @@ function buildToolAreaTextsOnly() {
   const user = await be.ready();
   const me = user && await be.getMyStudent(session.examId).catch(() => 'offline');
   if (!me) { resetSession(); return; }
+  submittedAt = Number(localStorage.getItem(submitKey())) || await be.getMySubmission(session.examId);
   startSession();
 })();

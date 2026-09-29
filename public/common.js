@@ -34,7 +34,7 @@ export const fmtDateTime = (ms) => new Date(ms).toLocaleString(locale(), { dateS
 // ---------- Eventos ----------
 // Los datos guardados no dependen del idioma: type y reason son códigos que se traducen al mostrarlos.
 // reason: 'hidden' | 'blur' | 'window' | 'tool:<nombre de la herramienta>'
-export const CLIENT_EVENTS = ['exam_enter', 'away_start', 'away_end', 'fullscreen_exit', 'page_leave', 'disconnected', 'reconnected'];
+export const CLIENT_EVENTS = ['exam_enter', 'away_start', 'away_end', 'fullscreen_exit', 'page_leave', 'disconnected', 'reconnected', 'exam_submit'];
 
 /** Hora real del hecho: la del cliente (corregida con el offset) si la hay; si no, la del servidor. */
 export const eventTime = (e) => e.clientTs ?? e.ts;

@@ -261,6 +261,25 @@ export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
         .catch((err) => { throw wrap(err); });
     },
 
+    /**
+     * El alumno termina su examen: registra 'exam_submit' y la hora de entrega en una sola escritura.
+     * A partir de ahí las reglas rechazan cualquier otro evento suyo.
+     */
+    submitExam(examId, { clientId, clientTs }) {
+      const me = uidOrThrow();
+      return update(ref(db), {
+        [`exams/${examId}/events/${me}/${clientId}`]: clean({ type: 'exam_submit', clientTs, ts: serverTimestamp() }),
+        [`exams/${examId}/submitted/${me}`]: serverTimestamp(),
+      }).catch((err) => { throw wrap(err); });
+    },
+
+    /** Hora de entrega del alumno en ese examen, o null si no ha terminado. */
+    async getMySubmission(examId) {
+      const u = auth.currentUser;
+      if (!u) return null;
+      try { return (await get(ref(db, `exams/${examId}/submitted/${u.uid}`))).val(); } catch { return null; }
+    },
+
     /** URL REST para registrar un evento sin el SDK (sendBeacon al cerrar la página). */
     eventRestUrl(examId) {
       const u = auth.currentUser;

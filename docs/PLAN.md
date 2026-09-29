@@ -167,6 +167,8 @@ CSV) funciona en la URL de Pages con dos navegadores reales.
 
 - [x] Control de quién puede crear exámenes: solicitud de acceso, aprobación en `/admin/`, lista de
       profesores autorizados en las reglas (29/09/2026, v0.3.0).
+- [x] Botón «Terminar examen» para el alumno: registra la hora, detiene la supervisión y no se
+      puede deshacer; en el panel, «Terminó HH:MM» y contador «han terminado» (v0.4.0).
 - [x] Pie con copyright, versión y enlace a jfcoronel.org; icono (círculos concéntricos) en la cabecera.
 
 - [x] Aviso al volver siempre, con el tiempo fuera y "puedes continuar" (breve si no llega a la

@@ -44,6 +44,11 @@ export default {
   'exam.windowTitle': 'Exam tools',
   'exam.windowText': 'Each tool opens in its own window. Keep this window visible (for example, on one side of the screen): the time you spend outside it is recorded.',
   'exam.open': 'Open {name}',
+  'exam.submit': 'Finish exam',
+  'submit.title': 'Have you finished the exam?',
+  'submit.text': 'The time you finish will be recorded and this page will no longer be monitored. You won’t be able to go back to the exam.',
+  'submit.confirm': 'Yes, I’ve finished',
+  'submit.cancel': 'Carry on with the exam',
 
   'conn.online': 'Connected',
   'conn.offline': 'Offline',
@@ -64,6 +69,8 @@ export default {
   'done.title': 'Exam finished',
   'done.text': 'Your teacher has closed the exam. You can close this window now.',
   'done.leave': 'Leave',
+  'done.submittedTitle': 'You have finished the exam',
+  'done.submittedText': 'Your submission was recorded at {time}. You can close this window now.',
 
   // ---------- Teacher ----------
   'auth.title': 'Teacher sign-in',
@@ -125,6 +132,7 @@ export default {
   'panel.cAway': 'away now',
   'panel.cOff': 'offline',
   'panel.cFlag': 'with incidents',
+  'panel.cDone': 'finished',
   'panel.students': 'Students',
   'panel.onlyFlagged': 'Only with incidents',
   'panel.empty': 'Nobody has joined yet. Project the code so students can join.',
@@ -146,6 +154,7 @@ export default {
   'st.away': 'Away {dur}',
   'st.in': 'In the exam',
   'st.notEntered': 'Hasn’t entered yet',
+  'st.submitted': 'Finished {time}',
 
   'ev.exam_enter': 'Entered the exam',
   'ev.away_start': 'Left: {reason}',
@@ -154,6 +163,7 @@ export default {
   'ev.page_leave': 'Closed or reloaded the page',
   'ev.disconnected': 'Disconnected',
   'ev.reconnected': 'Reconnected',
+  'ev.exam_submit': 'Finished the exam',
 
   'reason.blur': 'the exam window lost focus',
   'reason.hidden': 'page hidden (another tab, minimised window…)',

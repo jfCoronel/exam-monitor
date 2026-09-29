@@ -113,6 +113,14 @@ al.debug.goOnline();
 ok(await waitFor(() => seen.online.get(alUid) === true), 'reconexión: presencia online');
 ok(await waitFor(() => seen.events.some((e) => e.type === 'reconnected')), 'reconexión registrada');
 
+// ---------- El alumno termina su examen ----------
+pres.setActive(false);
+await al.submitExam(exam.id, { clientId: id(), clientTs: Date.now() });
+ok(await waitFor(() => seen.events.some((e) => e.type === 'exam_submit' && e.studentId === alUid)), 'el panel recibe que el alumno ha terminado');
+ok((await al.getMySubmission(exam.id)) > 0, 'la entrega queda guardada (sobrevive a una recarga)');
+ok(await rejects(al.sendEvent(exam.id, { clientId: id(), type: 'away_start' }), 'permission'), 'tras terminar no registra más eventos');
+ok(await rejects(al.submitExam(exam.id, { clientId: id(), clientTs: Date.now() })), 'no puede terminar dos veces');
+
 // ---------- Otro profesor ----------
 const intruso = createBackend({ emulator: true, name: 'otro' });
 await signIn(intruso, 'prof-2', 'otro@us.es');

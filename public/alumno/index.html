@@ -78,6 +78,7 @@
       <div class="exam-bar-name"><img class="bar-icon" src="../icons/icon.svg" alt=""><strong id="bar-exam"></strong> <span class="muted small" id="bar-student"></span></div>
       <nav class="tool-tabs" id="tool-tabs" data-i18n-attr="aria-label:exam.toolsNav"></nav>
       <div class="row">
+        <button class="bar-submit" id="btn-submit" data-i18n="exam.submit">Terminar examen</button>
         <span class="pill" id="bar-conn"></span>
         <span class="clock" id="bar-clock" data-i18n-attr="aria-label:exam.timeLeft">--:--</span>
       </div>
@@ -91,8 +92,8 @@
   <!-- 4. Fin -->
   <main class="page" id="view-done" hidden>
     <div class="sheet stack">
-      <h1 data-i18n="done.title">Examen finalizado</h1>
-      <p data-i18n="done.text">El profesor ha cerrado el examen. Ya puedes cerrar esta ventana.</p>
+      <h1 id="done-title"></h1>
+      <p id="done-text"></p>
       <button id="btn-leave" data-i18n="done.leave">Salir</button>
     </div>
   </main>
@@ -105,6 +106,18 @@
       <h2 id="alert-title"></h2>
       <div id="alert-body"></div>
       <button class="btn-primary btn-big" id="btn-alert-ok"></button>
+    </div>
+  </div>
+
+  <!-- Confirmación para terminar el examen -->
+  <div class="alert-overlay warn" id="submit-dialog" role="alertdialog" aria-modal="true" aria-labelledby="submit-title" hidden>
+    <div class="alert-box">
+      <h2 id="submit-title" data-i18n="submit.title">¿Has terminado el examen?</h2>
+      <p data-i18n="submit.text"></p>
+      <div class="row">
+        <button class="btn-primary btn-big" id="btn-submit-yes" data-i18n="submit.confirm">Sí, he terminado</button>
+        <button id="btn-submit-no" data-i18n="submit.cancel">Seguir con el examen</button>
+      </div>
     </div>
   </div>
 

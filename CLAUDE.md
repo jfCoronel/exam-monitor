@@ -64,6 +64,7 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
 /exams/{examId}/students/{uid}     { name, code, joinedAt }
 /exams/{examId}/presence/{uid}     { online, changedAt }       onDisconnect() lo pone a false
 /exams/{examId}/events/{uid}/{clientId}  { type, ts, clientTs?, durationMs?, reason? }
+/exams/{examId}/submitted/{uid}    ts                          el alumno terminó (una sola vez)
 /teachers/{uid}/exams/{examId}     { name, code, createdAt }
 /admins/{emailKey}                 true                        solo se edita desde consola o CLI
 /allowedTeachers/{emailKey}        { email, addedAt, addedBy }  profesores autorizados (los gestiona el admin)
@@ -98,7 +99,12 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
 ## Eventos
 
 Tipos: `exam_enter`, `away_start`, `away_end`, `fullscreen_exit`, `page_leave`, `disconnected`,
-`reconnected`. Solo se aceptan con el examen `active` y del propio alumno.
+`reconnected`, `exam_submit`. Solo se aceptan con el examen `active`, del propio alumno y si no ha terminado.
+
+- `exam_submit`: botón «Terminar examen» de la barra (confirmación dentro de la página, no `confirm()`).
+  Se escribe junto con `/submitted/{uid}` en una sola actualización; desde ahí las reglas rechazan
+  cualquier otro evento de ese alumno. La supervisión se detiene *antes* de salir de pantalla completa.
+  En el panel pasa a «Terminó HH:MM», al final de la lista, y no cuenta como sin conexión.
 
 - `disconnected`: lo escribe el **servidor** con `onDisconnect()`, armado por el alumno al empezar
   el examen y en cada reconexión. `reconnected` lo escribe el alumno al recuperar la conexión.

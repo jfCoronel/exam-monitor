@@ -189,10 +189,10 @@
               "ts"
             ],
             "$clientId": {
-              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('exams/' + $examId + '/students/' + $uid).exists() && root.child('exams/' + $examId + '/meta/status').val() === 'active'",
+              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('exams/' + $examId + '/students/' + $uid).exists() && root.child('exams/' + $examId + '/meta/status').val() === 'active' && !root.child('exams/' + $examId + '/submitted/' + $uid).exists()",
               ".validate": "$clientId.matches(/^[A-Za-z0-9_-]{1,64}$/) && newData.hasChildren(['type', 'ts'])",
               "type": {
-                ".validate": "newData.isString() && newData.val().matches(/^(exam_enter|away_start|away_end|fullscreen_exit|page_leave|disconnected|reconnected)$/)"
+                ".validate": "newData.isString() && newData.val().matches(/^(exam_enter|away_start|away_end|fullscreen_exit|page_leave|disconnected|reconnected|exam_submit)$/)"
               },
               "ts": {
                 ".validate": "newData.val() === now"
@@ -210,6 +210,13 @@
                 ".validate": false
               }
             }
+          }
+        },
+        "submitted": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('exams/' + $examId + '/students/' + $uid).exists() && root.child('exams/' + $examId + '/meta/status').val() === 'active'",
+            ".validate": "newData.val() === now"
           }
         }
       }

@@ -98,6 +98,7 @@ test('eventos y ciclo de vida', async (t) => {
   await createExam(google('prof'));
   await join('al1');
   await t.test('no registra eventos antes de iniciar', () => assertFails(event('al1', 'c0', { type: 'exam_enter' })));
+  await t.test('no puede terminar antes de iniciar', () => assertFails(anon('al1').ref(`exams/${EXAM}/submitted/al1`).set(TS)));
   await t.test('el alumno no puede iniciar el examen', () =>
     assertFails(setStatus(anon('al1'), 'active', { startedAt: TS })));
   await t.test('startedAt debe ser la hora del servidor', () =>
@@ -114,6 +115,22 @@ test('eventos y ciclo de vida', async (t) => {
   await t.test('no escribe eventos de otro alumno', () =>
     assertFails(anon('al1').ref(`exams/${EXAM}/events/al2/c7`).set({ type: 'exam_enter', ts: TS })));
   await t.test('quien no se ha unido no escribe eventos', () => assertFails(event('intruso', 'c8', { type: 'exam_enter' })));
+
+  const submit = (uid, cid) => anon(uid).ref().update({
+    [`exams/${EXAM}/events/${uid}/${cid}`]: { type: 'exam_submit', ts: TS, clientTs: Date.now() },
+    [`exams/${EXAM}/submitted/${uid}`]: TS,
+  });
+  await join('al2');
+  await t.test('el alumno termina su examen', () => assertSucceeds(submit('al1', 's1')));
+  await t.test('no puede terminarlo dos veces', () => assertFails(anon('al1').ref(`exams/${EXAM}/submitted/al1`).set(TS)));
+  await t.test('tras terminar no registra más eventos', () => assertFails(event('al1', 'c10', { type: 'away_start' })));
+  await t.test('no puede marcar como terminado a otro', () => assertFails(anon('al1').ref(`exams/${EXAM}/submitted/al2`).set(TS)));
+  await t.test('la hora de entrega la pone el servidor', () => assertFails(anon('al2').ref(`exams/${EXAM}/submitted/al2`).set(1)));
+  await t.test('lee su propia entrega, no la de otros', async () => {
+    await assertSucceeds(anon('al1').ref(`exams/${EXAM}/submitted/al1`).get());
+    await assertFails(anon('al1').ref(`exams/${EXAM}/submitted/al2`).get());
+  });
+  await t.test('los demás siguen registrando eventos', () => assertSucceeds(event('al2', 'c11', { type: 'exam_enter' })));
 
   await t.test('el profesor finaliza y libera el código', () => assertSucceeds(google('prof').ref().update({
     [`exams/${EXAM}/meta/status`]: 'finished', [`exams/${EXAM}/meta/endedAt`]: TS, [`codes/${CODE}`]: null,

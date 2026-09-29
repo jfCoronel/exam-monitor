@@ -31,6 +31,8 @@ function applyEvent(ev) {
   const i = s.events.findIndex((e) => eventTime(e) > eventTime(ev));
   s.events.splice(i < 0 ? s.events.length : i, 0, ev);
   s.entered = s.events.some((e) => e.type === 'exam_enter');
+  const sub = s.events.find((e) => e.type === 'exam_submit');
+  s.submittedAt = sub ? eventTime(sub) : null;
   s.away = null;
   for (const e of s.events) {
     if (e.type === 'away_start') s.away = { since: eventTime(e), reason: e.reason };
@@ -172,7 +174,8 @@ function summarize(s) {
   awayMs += awayNow;
 
   let cls = '', label = t('st.waiting'), pill = 'pen';
-  if (exam?.status === 'finished') { label = t('st.finished'); pill = ''; }
+  if (s.submittedAt) { cls = 'st-done'; label = t('st.submitted', { time: fmtTime(s.submittedAt) }); pill = 'ok'; }
+  else if (exam?.status === 'finished') { label = t('st.finished'); pill = ''; }
   else if (!s.online) { cls = 'st-off'; label = t('st.offline'); pill = 'warn'; }
   else if (s.away) {
     const long = awayNow >= (exam?.toleranceMs || 0);
@@ -190,13 +193,16 @@ function renderAll() {
   const list = [...students.values()].map((s) => ({ s, sum: summarize(s) }));
 
   $('#c-joined').textContent = list.length;
-  $('#c-in').textContent = list.filter(({ s }) => s.entered && s.online && !s.away).length;
-  $('#c-away').textContent = list.filter(({ s }) => s.away).length;
-  $('#c-off').textContent = list.filter(({ s }) => !s.online).length;
+  const working = list.filter(({ s }) => !s.submittedAt);
+  $('#c-in').textContent = working.filter(({ s }) => s.entered && s.online && !s.away).length;
+  $('#c-away').textContent = working.filter(({ s }) => s.away).length;
+  $('#c-off').textContent = working.filter(({ s }) => !s.online).length;
+  $('#c-done').textContent = list.length - working.length;
   $('#c-flag').textContent = list.filter(({ sum }) => sum.infractions).length;
 
-  // Orden: primero quien está fuera ahora, luego sin conexión, luego por nº de incidencias, luego nombre.
-  const rank = ({ s }) => (s.away ? 0 : !s.online ? 1 : 2);
+  // Orden: fuera ahora, sin conexión, en el examen y, al final, quien ya ha terminado;
+  // dentro de cada grupo, por nº de incidencias y luego por nombre.
+  const rank = ({ s }) => (s.submittedAt ? 3 : s.away ? 0 : !s.online ? 1 : 2);
   list.sort((a, b) => rank(a) - rank(b) || b.sum.infractions - a.sum.infractions ||
     a.s.name.localeCompare(b.s.name, locale(), { sensitivity: 'base' }));
 
