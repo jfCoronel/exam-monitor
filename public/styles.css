@@ -167,6 +167,7 @@ body:has(#view-exam:not([hidden])) .lang-float { display: none; }
 .brand-title img { width: 56px; height: 56px; }
 .brand-float { position: fixed; top: 14px; left: 16px; z-index: 5; }
 body:has(#view-exam:not([hidden])) .brand-float { display: none; }
-.site-footer { text-align: center; font-size: .8125rem; color: var(--muted); padding: 24px 16px 32px; }
+.site-footer { display: flex; justify-content: center; flex-wrap: wrap; text-align: center; width: 100%;
+  font-size: .6875rem; color: var(--muted); padding: 24px 16px 28px; }
 .site-footer a { color: inherit; }
 body:has(#view-exam:not([hidden])) .site-footer { display: none; }

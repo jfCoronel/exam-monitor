@@ -1,6 +1,6 @@
 {
   "name": "exam-monitor",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "PWA para supervisar el foco del navegador en exámenes presenciales (GitHub Pages + Firebase)",
   "type": "module",
   "private": true,
