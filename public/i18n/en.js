@@ -176,8 +176,8 @@ export default {
 
   // ---------- Teacher permissions and admin ----------
   'access.title': 'Teacher access',
-  'access.needed': 'To create exams, the administrator has to authorise your account ({email}). Click “Request access” and they will enable it.',
-  'access.requested': 'Request sent on {date} with the account {email}. As soon as the administrator approves it, this page will unlock by itself.',
+  'access.needed': 'To create exams, your account ({email}) has to be authorised. Click “Request access” and contact {admin} to approve your request.',
+  'access.requested': 'Request sent on {date} with the account {email}. Contact {admin} to approve it; as soon as they do, this page will unlock by itself.',
   'access.request': 'Request access',
   'admin.link': 'Admin',
   'admin.title': 'Admin',

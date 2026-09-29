@@ -176,8 +176,8 @@ export default {
 
   // ---------- Permisos de profesor y administración ----------
   'access.title': 'Acceso de profesor',
-  'access.needed': 'Para crear exámenes, el administrador tiene que autorizar tu cuenta ({email}). Pulsa «Solicitar acceso» y te habilitará.',
-  'access.requested': 'Solicitud enviada el {date} con la cuenta {email}. En cuanto el administrador la apruebe, esta página se desbloqueará sola.',
+  'access.needed': 'Para crear exámenes, tu cuenta ({email}) tiene que estar autorizada. Pulsa «Solicitar acceso» y ponte en contacto con {admin} para que apruebe tu solicitud.',
+  'access.requested': 'Solicitud enviada el {date} con la cuenta {email}. Ponte en contacto con {admin} para que la apruebe; en cuanto lo haga, esta página se desbloqueará sola.',
   'access.request': 'Solicitar acceso',
   'admin.link': 'Administración',
   'admin.title': 'Administración',

@@ -1,6 +1,7 @@
 import { $, esc, fmtDateTime, mountFooter } from '../common.js';
 import { t, mountLangSwitch, applyI18n } from '../i18n/index.js';
 import { createBackend } from '../backend.js';
+import { ADMIN_CONTACT } from '../version.js';
 
 const be = createBackend();
 const toolsBox = $('#tools');
@@ -39,8 +40,8 @@ be.onUser((user) => {
 function renderPending() {
   const req = access?.request;
   $('#pending-text').textContent = req
-    ? t('access.requested', { email: req.email, date: fmtDateTime(req.requestedAt) })
-    : t('access.needed', { email: be.currentUser()?.email || '' });
+    ? t('access.requested', { email: req.email, date: fmtDateTime(req.requestedAt), admin: ADMIN_CONTACT })
+    : t('access.needed', { email: be.currentUser()?.email || '', admin: ADMIN_CONTACT });
   $('#btn-request').hidden = !!req;
 }
 
