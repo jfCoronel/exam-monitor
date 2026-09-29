@@ -94,6 +94,11 @@ Clave: `document.hasFocus()` sigue siendo `true` cuando el foco está dentro de 
 página, así que **usar la herramienta incrustada no cuenta como salir**. Esto se ha verificado en
 Chromium; hay que verificarlo en Firefox y Safari.
 
+Al volver, el alumno **siempre** ve cuánto ha estado fuera: aviso breve que se cierra solo si no
+llega a la tolerancia; diálogo rojo si es incidencia. Salir de pantalla completa (modo pestaña)
+abre un diálogo ámbar cuyo botón la vuelve a pedir (necesita el clic del alumno). Si coinciden,
+se muestra un solo diálogo con las dos cosas.
+
 Modos:
 - `pestana` (recomendado): las herramientas se cargan en iframes dentro de la página del examen,
   con pestañas internas. Cualquier salida es detectable.

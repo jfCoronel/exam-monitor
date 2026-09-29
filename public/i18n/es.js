@@ -50,8 +50,15 @@ export default {
   'conn.offlineHint': 'Tus registros se enviarán cuando vuelva la conexión',
 
   'alert.title': 'Has salido del examen',
+  'alert.fsTitle': 'Has salido de pantalla completa',
+  'alert.fsText': 'Queda registrado y el profesor lo ve.',
+  'alert.fsAlso': 'También has salido de pantalla completa.',
+  'alert.noInfraction': 'Es menos de la tolerancia ({tol}): no cuenta como incidencia.',
+  'alert.short': 'Has estado fuera {dur}. Es menos de la tolerancia ({tol}): no cuenta como incidencia. Puedes continuar.',
+  'alert.canContinue': 'Puedes continuar con el examen.',
   'alert.dur': 'Tiempo fuera: {dur}',
-  'alert.back': 'Volver al examen',
+  'alert.continue': 'Continuar con el examen',
+  'alert.continueFs': 'Volver a pantalla completa y continuar',
   'title.away': '⚠ Vuelve al examen',
 
   'done.title': 'Examen finalizado',

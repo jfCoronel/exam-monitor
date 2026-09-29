@@ -1,7 +1,7 @@
 // Service worker mínimo: hace la PWA instalable y permite abrirla aunque la red falle un momento.
 // Estrategia: red primero, caché como respaldo. Firebase (otro origen) nunca pasa por aquí.
 // Rutas relativas a este fichero, para funcionar igual en un dominio propio o en un subdirectorio.
-const CACHE = 'exam-monitor-v3';
+const CACHE = 'exam-monitor-v4';
 const SHELL = [
   './alumno/', './alumno/alumno.js', './alumno/alumno.css',
   './common.js', './backend.js', './firebase-config.js', './styles.css', './manifest.webmanifest',

@@ -50,8 +50,15 @@ export default {
   'conn.offlineHint': 'Your records will be sent when the connection comes back',
 
   'alert.title': 'You left the exam',
+  'alert.fsTitle': 'You left full screen',
+  'alert.fsText': 'This has been recorded and your teacher can see it.',
+  'alert.fsAlso': 'You also left full screen.',
+  'alert.noInfraction': 'That’s under the tolerance ({tol}): it doesn’t count as an incident.',
+  'alert.short': 'You were away for {dur}. That’s under the tolerance ({tol}): it doesn’t count as an incident. You can carry on.',
+  'alert.canContinue': 'You can carry on with the exam.',
   'alert.dur': 'Time away: {dur}',
-  'alert.back': 'Back to the exam',
+  'alert.continue': 'Carry on with the exam',
+  'alert.continueFs': 'Back to full screen and carry on',
   'title.away': '⚠ Back to the exam',
 
   'done.title': 'Exam finished',

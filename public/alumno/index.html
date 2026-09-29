@@ -99,12 +99,14 @@
   <!-- Aviso al volver tras salir -->
   <div class="alert-overlay" id="alert" role="alertdialog" aria-modal="true" aria-labelledby="alert-title" hidden>
     <div class="alert-box">
-      <h2 id="alert-title" data-i18n="alert.title">Has salido del examen</h2>
-      <p id="alert-text"></p>
-      <p class="alert-dur" id="alert-dur"></p>
-      <button class="btn-primary btn-big" id="btn-alert-ok" data-i18n="alert.back">Volver al examen</button>
+      <h2 id="alert-title"></h2>
+      <div id="alert-body"></div>
+      <button class="btn-primary btn-big" id="btn-alert-ok"></button>
     </div>
   </div>
+
+  <!-- Aviso breve: fuera menos de la tolerancia -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script type="module" src="alumno.js"></script>
 </body>

@@ -165,6 +165,10 @@ CSV) funciona en la URL de Pages con dos navegadores reales.
 
 ### Fase 3 — Robustez durante el examen
 
+- [x] Aviso al volver siempre, con el tiempo fuera y "puedes continuar" (breve si no llega a la
+      tolerancia); diálogo al salir de pantalla completa con botón para volver. Pedido tras la
+      primera prueba real (29/09/2026).
+
 - [ ] **Fin automático** al agotarse el tiempo: el alumno deja de supervisar en local al llegar a
       `startedAt + duración`; el panel del profesor marca el examen como `finished`.
 - [ ] **Iframe bloqueado**: si una herramienta no carga (tiempo de espera o `X-Frame-Options`),

@@ -226,6 +226,10 @@ function stopMonitoring() {
   clearInterval(pollTimer); pollTimer = null;
   if (away) endAway(false);
   setAwayTitle(false);
+  notice = null;
+  if (exam) renderNotice();
+  if (document.querySelector('#toast')) hideToast();
+  $('#fs-banner').hidden = true;
 }
 
 function check() {
@@ -247,18 +251,61 @@ function startAway(reason) {
   setAwayTitle(true);
 }
 
-function endAway(showAlert) {
+function endAway(showNotice) {
   const durationMs = Math.min(Date.now() - away.since, 86_400_000);
   sendEvent('away_end', { reason: away.reason, durationMs });
   away = null;
   setAwayTitle(false);
-  if (showAlert && durationMs >= exam.toleranceMs) {
-    $('#alert-text').textContent = exam.alertText;
-    $('#alert-dur').textContent = t('alert.dur', { dur: fmtDur(durationMs) });
-    $('#alert').hidden = false;
-    $('#btn-alert-ok').focus();
+  if (showNotice) {
+    const infraction = durationMs >= exam.toleranceMs;
+    notice = { ...notice, awayMs: durationMs, infraction: infraction || !!notice?.infraction };
+    renderNotice();
   }
 }
+
+// ---------- Aviso al volver ----------
+// Siempre se le dice al alumno cuánto ha estado fuera. Si no llega a la tolerancia, basta un aviso
+// discreto que se cierra solo; si es incidencia o ha salido de pantalla completa, un diálogo.
+let notice = null; // { awayMs?, infraction?, fsExit? } hasta que el alumno lo cierra
+let toastTimer = null;
+const fsSupported = () => !!document.documentElement.requestFullscreen;
+
+function renderNotice() {
+  if (!notice) { $('#alert').hidden = true; return; }
+  const { awayMs, infraction, fsExit } = notice;
+  if (!infraction && !fsExit) { // fuera menos de la tolerancia
+    notice = null;
+    $('#alert').hidden = true;
+    showToast(t('alert.short', { dur: fmtDur(awayMs), tol: fmtDur(exam.toleranceMs) }));
+    return;
+  }
+  hideToast();
+  const lines = [];
+  if (awayMs != null) lines.push(`<p class="alert-dur">${esc(t('alert.dur', { dur: fmtDur(awayMs) }))}</p>`);
+  if (infraction) lines.push(`<p>${esc(exam.alertText)}</p>`);
+  else if (awayMs != null) lines.push(`<p>${esc(t('alert.noInfraction', { tol: fmtDur(exam.toleranceMs) }))}</p>`);
+  if (fsExit) lines.push(`<p>${esc(t(infraction ? 'alert.fsAlso' : 'alert.fsText'))}</p>`);
+  lines.push(`<p>${esc(t('alert.canContinue'))}</p>`);
+  $('#alert').className = `alert-overlay ${infraction ? 'bad' : 'warn'}`;
+  $('#alert-title').textContent = t(infraction ? 'alert.title' : 'alert.fsTitle');
+  $('#alert-body').innerHTML = lines.join('');
+  $('#btn-alert-ok').textContent = t(needsFullscreen() ? 'alert.continueFs' : 'alert.continue');
+  const wasHidden = $('#alert').hidden;
+  $('#alert').hidden = false;
+  if (wasHidden) $('#btn-alert-ok').focus();
+}
+
+/** En modo pestaña el examen se hace en pantalla completa; en modo ventana no se insiste. */
+const needsFullscreen = () => exam?.mode === 'pestana' && fsSupported() && !document.fullscreenElement;
+
+function showToast(text) {
+  const el = $('#toast');
+  el.textContent = text;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 6000);
+}
+function hideToast() { clearTimeout(toastTimer); $('#toast').hidden = true; }
 
 // El título cambia mientras está fuera: se ve en la barra de tareas y en la pestaña.
 function setAwayTitle(on) { document.title = on ? t('title.away') : t('app.name'); }
@@ -269,14 +316,21 @@ window.addEventListener('focus', check);
 
 document.addEventListener('fullscreenchange', () => {
   const out = !document.fullscreenElement;
-  $('#fs-banner').hidden = !(out && monitoring());
-  if (out && monitoring()) sendEvent('fullscreen_exit');
+  $('#fs-banner').hidden = !(out && monitoring() && exam.mode === 'pestana');
+  if (!out || !monitoring()) return;
+  sendEvent('fullscreen_exit');
+  if (exam.mode === 'pestana') {
+    notice = { ...notice, fsExit: true };
+    renderNotice(); // si ha salido con Alt+Tab, lo verá al volver, junto con el tiempo fuera
+  }
 });
 $('#btn-fs').addEventListener('click', goFullscreen);
 
 $('#btn-alert-ok').addEventListener('click', () => {
-  $('#alert').hidden = true;
-  if (exam?.mode === 'pestana') goFullscreen();
+  const fs = needsFullscreen();
+  notice = null;
+  renderNotice();
+  if (fs) goFullscreen(); // el clic del alumno permite pedir pantalla completa
 });
 
 // Cerrar o recargar la página: último aviso con sendBeacon a la API REST (el SDK no llega a enviarlo).
@@ -302,6 +356,7 @@ $('#btn-leave').addEventListener('click', resetSession);
 mountLangSwitch();
 document.addEventListener('langchange', () => {
   render();
+  if (notice) renderNotice();
   if (monitoring()) buildToolAreaTextsOnly();
   setAwayTitle(!!away);
   const pill = $('#bar-conn');

@@ -32,10 +32,21 @@
   background: rgba(120, 20, 16, .88);
   padding: 20px;
 }
+.alert-overlay.warn { background: rgba(20, 35, 58, .85); }
 .alert-box {
   background: #fff; border-radius: var(--r-md);
   border-top: 8px solid var(--bad);
   max-width: 480px; width: 100%; padding: 28px;
 }
+.alert-overlay.warn .alert-box { border-top-color: var(--warn); }
 .alert-box h2 { color: var(--bad); font-size: 1.5rem; }
-.alert-dur { font-weight: 700; }
+.alert-overlay.warn .alert-box h2 { color: var(--warn); }
+.alert-dur { font-weight: 700; font-size: 1.125rem; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 900;
+  max-width: min(560px, calc(100% - 32px));
+  background: var(--warn-soft); color: var(--warn); border: 1px solid currentColor;
+  border-radius: var(--r-md); padding: 12px 18px; font-weight: 700;
+  box-shadow: 0 6px 24px rgba(20, 35, 58, .18);
+}
