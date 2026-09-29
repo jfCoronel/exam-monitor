@@ -147,7 +147,7 @@ CSP, comprobado el 27/09/2026). Para otras URLs, comprobar con `curl -I <url>`.
   `package.json` y la `CACHE` de `public/sw.js` (lo comprueba `test/version.test.js`). Semver: 0.x
   hasta la v1.0.
 - Pie en todas las páginas (`mountFooter()`): © 2026 Juan F. Coronel · versión · jfcoronel.org. Se
-  oculta durante el examen. Icono: `public/icons/icon.svg` (hoja con casillas y un ojo); los PNG se
+  oculta durante el examen. Icono: `public/icons/icon.svg` (círculos concéntricos, elegido por el autor); los PNG se
   generan a partir del SVG.
 
 - El cliente no es de confianza: toda validación que importe va en `database.rules.json`, con su

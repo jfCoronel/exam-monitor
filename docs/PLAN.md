@@ -167,7 +167,7 @@ CSV) funciona en la URL de Pages con dos navegadores reales.
 
 - [x] Control de quién puede crear exámenes: solicitud de acceso, aprobación en `/admin/`, lista de
       profesores autorizados en las reglas (29/09/2026, v0.3.0).
-- [x] Pie con copyright, versión y enlace a jfcoronel.org; icono propio en la cabecera y la PWA.
+- [x] Pie con copyright, versión y enlace a jfcoronel.org; icono (círculos concéntricos) en la cabecera.
 
 - [x] Aviso al volver siempre, con el tiempo fuera y "puedes continuar" (breve si no llega a la
       tolerancia); diálogo al salir de pantalla completa con botón para volver. Pedido tras la

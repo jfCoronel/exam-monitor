@@ -1,13 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Exam Monitor: hoja de examen con el código en casillas y un ojo que la vigila -->
-  <rect width="512" height="512" rx="112" fill="#14233a"/>
-  <rect x="128" y="80" width="256" height="336" rx="24" fill="#ffffff"/>
-  <g fill="none" stroke="#14233a" stroke-width="12">
-    <rect x="164" y="124" width="48" height="56" rx="6"/>
-    <rect x="232" y="124" width="48" height="56" rx="6"/>
-    <rect x="300" y="124" width="48" height="56" rx="6"/>
-  </g>
-  <path d="M166 312 Q256 226 346 312 Q256 398 166 312 Z" fill="#e6ecfa" stroke="#2a56c6" stroke-width="16" stroke-linejoin="round"/>
-  <circle cx="256" cy="312" r="34" fill="#2a56c6"/>
-  <circle cx="256" cy="312" r="13" fill="#14233a"/>
+  <rect width="512" height="512" rx="96" fill="#14233a"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#ffffff" stroke-width="36"/>
+  <circle cx="256" cy="256" r="56" fill="#6f95f0"/>
 </svg>
