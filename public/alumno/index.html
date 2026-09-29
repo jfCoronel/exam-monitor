@@ -22,6 +22,7 @@
   </script>
 </head>
 <body>
+  <div class="brand brand-float"><img src="../icons/icon.svg" alt=""> <span data-i18n="app.name">Exam Monitor</span></div>
   <div class="lang-switch lang-float"></div>
 
   <!-- 0. Cargando la sesión guardada -->
@@ -74,7 +75,7 @@
   <!-- 3. Examen en curso -->
   <div id="view-exam" hidden>
     <header class="exam-bar">
-      <div class="exam-bar-name"><strong id="bar-exam"></strong> <span class="muted small" id="bar-student"></span></div>
+      <div class="exam-bar-name"><img class="bar-icon" src="../icons/icon.svg" alt=""><strong id="bar-exam"></strong> <span class="muted small" id="bar-student"></span></div>
       <nav class="tool-tabs" id="tool-tabs" data-i18n-attr="aria-label:exam.toolsNav"></nav>
       <div class="row">
         <span class="pill" id="bar-conn"></span>
@@ -95,6 +96,8 @@
       <button id="btn-leave" data-i18n="done.leave">Salir</button>
     </div>
   </main>
+
+  <footer class="site-footer"></footer>
 
   <!-- Aviso al volver tras salir -->
   <div class="alert-overlay" id="alert" role="alertdialog" aria-modal="true" aria-labelledby="alert-title" hidden>

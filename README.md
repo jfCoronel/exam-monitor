@@ -12,8 +12,9 @@ when a student leaves the exam page and shows it live on the teacher's dashboard
 
 ## Cómo se usa en clase
 
-1. El profesor entra en `/profesor/` con su cuenta de Google y crea el examen: nombre, duración,
-   herramientas permitidas y modo.
+1. El profesor entra en `/profesor/` con su cuenta de Google. La primera vez pulsa **Solicitar acceso**
+   y espera a que el administrador lo apruebe en `/admin/` (solo una vez). Después crea el examen:
+   nombre, duración, herramientas permitidas y modo.
 2. Pulsa **Proyectar código**. Los alumnos abren `/alumno/` (o escanean el QR), escriben su nombre y el código.
 3. Cuando están todos en la sala de espera, pulsa **Iniciar examen**.
 4. Cada alumno pulsa **Entrar al examen** (pasa a pantalla completa y empieza la supervisión).
@@ -39,7 +40,8 @@ npm test             # reglas de seguridad e i18n
 npm run smoke        # prueba de extremo a extremo (profesor + alumnos simulados)
 ```
 
-En `npm run dev`, el acceso con Google abre la pantalla del emulador: pulsa *Add new account*.
+En `npm run dev`, el acceso con Google abre la pantalla del emulador: pulsa *Add new account* y usa
+`admin@example.com` (administrador) o `profesor@example.com` (profesor autorizado).
 
 Publicar: cada push a `main` pasa los tests y despliega `public/` en Pages. Las reglas se publican
 aparte con `npm run deploy:rules` (requiere `npx firebase login`).
@@ -49,7 +51,8 @@ aparte con `npm run deploy:rules` (requiere `npx firebase login`).
 1. Crea un proyecto en Firebase, una Realtime Database (región UE) y activa en Authentication los
    métodos **Google** y **Anónimo**. Añade tu dominio en *Authentication → Configuración → Dominios autorizados*.
 2. Sustituye `firebaseConfig` en `public/firebase-config.js` y el proyecto en `.firebaserc`.
-3. `npm run deploy:rules` y publica `public/` en cualquier hosting estático con HTTPS.
+3. Hazte administrador: `npx firebase database:set "/admins/<tu correo con , en vez de .>" --data true`.
+4. `npm run deploy:rules` y publica `public/` en cualquier hosting estático con HTTPS.
 
 ## Protección de datos
 

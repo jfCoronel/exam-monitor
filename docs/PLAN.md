@@ -107,7 +107,7 @@ en `/opt/homebrew/opt/openjdk/bin` (en el `PATH` vía `~/.zshrc`). Node 24 LTS.
       la instancia por defecto), activar Anonymous y Google en Authentication, añadir
       `exam-monitor.jfcoronel.org` a los dominios autorizados, vincular la facturación.
 - [x] Desplegar reglas: `npx firebase deploy --only database`.
-- [ ] Opcional: restringir la creación de exámenes a correos `@us.es` desde las reglas.
+- [x] ~~Restringir a `@us.es`~~: sustituido por la lista de profesores autorizados (fase 3).
 - [x] Comprobar en el emulador que `onDisconnect()` pasa las reglas (se evalúan al registrarlo).
 
 **Hecho cuando**: los tests de reglas pasan y cubren cada regla de la sección "Reglas" de
@@ -164,6 +164,10 @@ CSV) funciona en la URL de Pages con dos navegadores reales.
 - Test sencillo que falla si `es.js` y `en.js` no tienen exactamente las mismas claves.
 
 ### Fase 3 — Robustez durante el examen
+
+- [x] Control de quién puede crear exámenes: solicitud de acceso, aprobación en `/admin/`, lista de
+      profesores autorizados en las reglas (29/09/2026, v0.3.0).
+- [x] Pie con copyright, versión y enlace a jfcoronel.org; icono propio en la cabecera y la PWA.
 
 - [x] Aviso al volver siempre, con el tiempo fuera y "puedes continuar" (breve si no llega a la
       tolerancia); diálogo al salir de pantalla completa con botón para volver. Pedido tras la

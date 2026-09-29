@@ -33,6 +33,9 @@ function randomCode() {
   return String(n).padStart(6, '0');
 }
 
+/** Clave de un correo en RTDB: sin mayúsculas y con ',' en lugar de '.' (las reglas hacen lo mismo). */
+export const emailKey = (email) => String(email).trim().toLowerCase().replaceAll('.', ',');
+
 const normMeta = (id, v) => (v ? { id, ...v, tools: v.tools ? Object.values(v.tools) : [] } : null);
 
 export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
@@ -91,6 +94,58 @@ export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
     },
 
     signOut: () => signOut(auth),
+
+    // ---------- Permisos de profesor ----------
+    /**
+     * Estado de acceso del profesor, en vivo: cb({ admin, approved, request }) cada vez que cambia.
+     * request = { email, name, requestedAt } si tiene una solicitud pendiente.
+     */
+    watchAccess(cb) {
+      const u = auth.currentUser;
+      if (!u?.email) { cb({ admin: false, approved: false, request: null }); return () => {}; }
+      const k = emailKey(u.email);
+      const st = { admin: null, approved: null, request: undefined };
+      const emit = () => { if (st.admin !== null && st.approved !== null && st.request !== undefined) cb({ ...st, approved: st.admin || st.approved }); };
+      const denied = (field, value) => () => { st[field] = value; emit(); };
+      const stops = [
+        onValue(ref(db, `admins/${k}`), (s) => { st.admin = s.val() === true; emit(); }, denied('admin', false)),
+        onValue(ref(db, `allowedTeachers/${k}`), (s) => { st.approved = s.exists(); emit(); }, denied('approved', false)),
+        onValue(ref(db, `accessRequests/${u.uid}`), (s) => { st.request = s.val(); emit(); }, denied('request', null)),
+      ];
+      return () => stops.forEach((stop) => stop());
+    },
+
+    requestAccess() {
+      const u = auth.currentUser;
+      if (!u?.email) throw new BackendError('signed_out');
+      return set(ref(db, `accessRequests/${u.uid}`), clean({
+        email: u.email, name: (u.displayName || '').slice(0, 120) || undefined, requestedAt: serverTimestamp(),
+      })).catch((err) => { throw wrap(err); });
+    },
+
+    // ---------- Administración ----------
+    /** Solicitudes pendientes y profesores autorizados, en vivo. */
+    watchAdmin({ requests, teachers, error }) {
+      const fail = (err) => error?.(wrap(err));
+      const list = (s) => Object.entries(s.val() || {}).map(([id, v]) => ({ id, ...v }));
+      const stops = [
+        onValue(ref(db, 'accessRequests'), (s) => requests(list(s).sort((a, b) => a.requestedAt - b.requestedAt)), fail),
+        onValue(ref(db, 'allowedTeachers'), (s) => teachers(list(s).sort((a, b) => a.email.localeCompare(b.email))), fail),
+      ];
+      return () => stops.forEach((stop) => stop());
+    },
+
+    /** Autoriza un correo y, si venía de una solicitud, la borra en la misma escritura. */
+    approveTeacher(email, requestUid) {
+      const clean_ = String(email).trim();
+      const paths = {
+        [`allowedTeachers/${emailKey(clean_)}`]: { email: clean_, addedAt: serverTimestamp(), addedBy: auth.currentUser?.email || '' },
+      };
+      if (requestUid) paths[`accessRequests/${requestUid}`] = null;
+      return update(ref(db), paths).catch((err) => { throw wrap(err); });
+    },
+    rejectRequest: (requestUid) => set(ref(db, `accessRequests/${requestUid}`), null).catch((err) => { throw wrap(err); }),
+    revokeTeacher: (email) => set(ref(db, `allowedTeachers/${emailKey(email)}`), null).catch((err) => { throw wrap(err); }),
 
     onServerOffset: (cb) => onValue(ref(db, '.info/serverTimeOffset'), (s) => cb(s.val() || 0)),
     onConnected: (cb) => onValue(ref(db, '.info/connected'), (s) => cb(!!s.val())),

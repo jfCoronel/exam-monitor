@@ -1,4 +1,4 @@
-import { $, esc, uid, fmtClock, fmtDur } from '../common.js';
+import { $, esc, uid, fmtClock, fmtDur, mountFooter } from '../common.js';
 import { t, mountLangSwitch } from '../i18n/index.js';
 import { createBackend } from '../backend.js';
 
@@ -354,6 +354,7 @@ $('#btn-leave').addEventListener('click', resetSession);
 
 // ---------- Idioma ----------
 mountLangSwitch();
+mountFooter();
 document.addEventListener('langchange', () => {
   render();
   if (notice) renderNotice();

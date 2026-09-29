@@ -8,7 +8,11 @@ const EXAM = 'exam1';
 const CODE = '123456';
 
 let env;
-const google = (uid) => env.authenticatedContext(uid, { firebase: { sign_in_provider: 'google.com' } }).database();
+const emailOf = (uid) => `${uid}@us.es`;
+const key = (email) => email.toLowerCase().replaceAll('.', ',');
+const google = (uid, email = emailOf(uid), verified = true) => env.authenticatedContext(uid, {
+  email, email_verified: verified, firebase: { sign_in_provider: 'google.com' },
+}).database();
 const anon = (uid) => env.authenticatedContext(uid, { firebase: { sign_in_provider: 'anonymous' } }).database();
 
 const meta = (overrides = {}) => ({
@@ -37,8 +41,17 @@ before(async () => {
 });
 after(() => env?.cleanup());
 
-test('crear examen', async (t) => {
+/** Vacía la base y deja como administradora a 'admin' y como profesores autorizados a 'prof' y 'otro'. */
+async function reset({ allowed = ['prof', 'otro'] } = {}) {
   await env.clearDatabase();
+  await env.withSecurityRulesDisabled((ctx) => ctx.database().ref().update({
+    [`admins/${key(emailOf('admin'))}`]: true,
+    ...Object.fromEntries(allowed.map((u) => [`allowedTeachers/${key(emailOf(u))}`, { email: emailOf(u), addedAt: 1 }])),
+  }));
+}
+
+test('crear examen', async (t) => {
+  await reset();
   await t.test('un alumno anónimo no puede crear exámenes', () => assertFails(createExam(anon('prof'))));
   await t.test('rechaza URLs de herramienta que no son http(s)', () =>
     assertFails(createExam(google('prof'), { m: { tools: [{ name: 'x', url: 'javascript:alert(1)' }] } })));
@@ -56,7 +69,7 @@ test('crear examen', async (t) => {
 });
 
 test('unirse y leer', async (t) => {
-  await env.clearDatabase();
+  await reset();
   await createExam(google('prof'));
   await t.test('el alumno resuelve el código', () => assertSucceeds(anon('al1').ref(`codes/${CODE}`).get()));
   await t.test('no se pueden listar los códigos', () => assertFails(anon('al1').ref('codes').get()));
@@ -81,7 +94,7 @@ test('unirse y leer', async (t) => {
 });
 
 test('eventos y ciclo de vida', async (t) => {
-  await env.clearDatabase();
+  await reset();
   await createExam(google('prof'));
   await join('al1');
   await t.test('no registra eventos antes de iniciar', () => assertFails(event('al1', 'c0', { type: 'exam_enter' })));
@@ -113,15 +126,63 @@ test('eventos y ciclo de vida', async (t) => {
 });
 
 test('código de un examen finalizado sin liberar', async () => {
-  await env.clearDatabase();
+  await reset();
   await createExam(google('prof'));
   await setStatus(google('prof'), 'finished', { endedAt: TS });
   await assertSucceeds(createExam(google('otro'), { examId: 'exam2', owner: 'otro' }));
 });
 
 test('borrar examen', async (t) => {
-  await env.clearDatabase();
+  await reset();
   await createExam(google('prof'));
   await t.test('otro profesor no puede', () => assertFails(google('otro').ref(`exams/${EXAM}`).remove()));
   await t.test('el propietario sí', () => assertSucceeds(google('prof').ref(`exams/${EXAM}`).remove()));
+});
+
+test('profesores autorizados', async (t) => {
+  await reset({ allowed: [] });
+  const nuevo = () => google('nuevo', 'ana.maria.lopez@us.es');
+  await t.test('sin autorizar no puede crear exámenes', () => assertFails(createExam(nuevo(), { owner: 'nuevo' })));
+  await t.test('con el correo sin verificar tampoco', () =>
+    assertFails(google('nuevo', 'ana.maria.lopez@us.es', false).ref('accessRequests/nuevo').set({ email: 'ana.maria.lopez@us.es', requestedAt: TS })));
+  await t.test('un alumno anónimo no puede solicitar acceso', () =>
+    assertFails(anon('al1').ref('accessRequests/al1').set({ email: 'x@y.z', requestedAt: TS })));
+  await t.test('solicita acceso con su propio correo', () =>
+    assertSucceeds(nuevo().ref('accessRequests/nuevo').set({ email: 'ana.maria.lopez@us.es', name: 'Ana', requestedAt: TS })));
+  await t.test('no puede solicitarlo con otro correo', () =>
+    assertFails(nuevo().ref('accessRequests/nuevo').set({ email: 'admin@us.es', requestedAt: TS })));
+  await t.test('no puede autorizarse a sí mismo', () =>
+    assertFails(nuevo().ref(`allowedTeachers/${key('ana.maria.lopez@us.es')}`).set({ email: 'ana.maria.lopez@us.es', addedAt: TS })));
+  await t.test('no puede hacerse administrador', () =>
+    assertFails(nuevo().ref(`admins/${key('ana.maria.lopez@us.es')}`).set(true)));
+  await t.test('no ve las solicitudes de otros ni la lista de autorizados', async () => {
+    await assertFails(nuevo().ref('accessRequests').get());
+    await assertFails(nuevo().ref('allowedTeachers').get());
+  });
+  await t.test('ve su propia solicitud y si está autorizado', async () => {
+    await assertSucceeds(nuevo().ref('accessRequests/nuevo').get());
+    await assertSucceeds(nuevo().ref(`allowedTeachers/${key('ana.maria.lopez@us.es')}`).get());
+  });
+  await t.test('la administradora ve solicitudes y autorizados', async () => {
+    await assertSucceeds(google('admin').ref('accessRequests').get());
+    await assertSucceeds(google('admin').ref('allowedTeachers').get());
+  });
+  await t.test('un profesor autorizado no es administrador', () => assertFails(google('otro').ref('accessRequests').get()));
+  await t.test('la clave debe corresponder al correo', () =>
+    assertFails(google('admin').ref('allowedTeachers/otra-clave').set({ email: 'ana.maria.lopez@us.es', addedAt: TS })));
+  await t.test('la administradora aprueba (todos los puntos del correo se sustituyen)', () => assertSucceeds(google('admin').ref().update({
+    [`allowedTeachers/${key('ana.maria.lopez@us.es')}`]: { email: 'ana.maria.lopez@us.es', addedAt: TS, addedBy: 'admin@us.es' },
+    'accessRequests/nuevo': null,
+  })));
+  await t.test('ya puede crear exámenes', () => assertSucceeds(createExam(nuevo(), { owner: 'nuevo' })));
+  await t.test('la administradora retira el permiso', () =>
+    assertSucceeds(google('admin').ref(`allowedTeachers/${key('ana.maria.lopez@us.es')}`).remove()));
+  await t.test('sin permiso no crea exámenes nuevos', () =>
+    assertFails(createExam(nuevo(), { examId: 'exam2', code: '654321', owner: 'nuevo' })));
+  await t.test('pero sí puede finalizar y borrar los suyos', async () => {
+    await assertSucceeds(setStatus(nuevo(), 'finished', { endedAt: TS }));
+    await assertSucceeds(nuevo().ref().update({ [`exams/${EXAM}`]: null, [`teachers/nuevo/exams/${EXAM}`]: null }));
+  });
+  await t.test('la administradora crea exámenes sin estar en la lista', () =>
+    assertSucceeds(createExam(google('admin'), { examId: 'exam3', code: '111111', owner: 'admin' })));
 });

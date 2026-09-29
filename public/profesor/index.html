@@ -20,8 +20,9 @@
 <body>
   <main class="page">
     <header class="topbar">
-      <a class="brand" href="../" data-i18n="app.name">Exam Monitor</a>
+      <a class="brand" href="../"><img src="../icons/icon.svg" alt=""> <span data-i18n="app.name">Exam Monitor</span></a>
       <div class="row">
+        <a class="small" id="admin-link" href="../admin/" hidden data-i18n="admin.link">Administración</a>
         <span class="small muted" id="user-email" hidden></span>
         <button class="btn-quiet small" id="btn-signout" hidden data-i18n="auth.signOut">Cerrar sesión</button>
         <div class="lang-switch"></div>
@@ -35,6 +36,13 @@
       <p data-i18n="auth.text">Entra con tu cuenta de Google para crear exámenes y ver sus paneles desde cualquier navegador.</p>
       <p class="error" id="signin-error" role="alert" hidden></p>
       <div><button class="btn-primary btn-big" id="btn-signin" data-i18n="auth.google">Entrar con Google</button></div>
+    </section>
+
+    <section class="sheet stack" id="pending" hidden>
+      <h1 data-i18n="access.title">Acceso de profesor</h1>
+      <p id="pending-text"></p>
+      <p class="error" id="pending-error" role="alert" hidden></p>
+      <div><button class="btn-primary btn-big" id="btn-request" hidden data-i18n="access.request">Solicitar acceso</button></div>
     </section>
 
     <div id="teacher" hidden>
@@ -100,6 +108,7 @@
       </form>
     </div>
   </main>
+  <footer class="site-footer"></footer>
 
   <template id="tool-row">
     <div class="tool-row">

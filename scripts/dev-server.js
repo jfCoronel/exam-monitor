@@ -3,6 +3,12 @@
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
+import { seedEmulator } from './seed-emulator.js';
+
+// Cuentas de prueba: en la ventana de Google del emulador, «Add new account» y escribir el correo.
+const DEV_ADMIN = 'admin@example.com';
+const DEV_TEACHER = 'profesor@example.com';
+await seedEmulator({ admins: [DEV_ADMIN], teachers: [DEV_TEACHER] });
 
 const ROOT = new URL('../public/', import.meta.url).pathname;
 const PORT = Number(process.env.PORT) || 8080;
@@ -27,5 +33,8 @@ createServer(async (req, res) => {
 }).listen(PORT, () => {
   console.log(`\nExam Monitor en desarrollo (emuladores): http://localhost:${PORT}/`);
   console.log(`  Alumnos:  http://localhost:${PORT}/alumno/`);
-  console.log(`  Profesor: http://localhost:${PORT}/profesor/\n`);
+  console.log(`  Profesor: http://localhost:${PORT}/profesor/`);
+  console.log(`  Admin:    http://localhost:${PORT}/admin/`);
+  console.log(`\n  Cuentas de prueba (emulador de Google, «Add new account»): ${DEV_ADMIN} (administrador),`);
+  console.log(`  ${DEV_TEACHER} (profesor autorizado). Cualquier otro correo tendrá que solicitar acceso.\n`);
 });

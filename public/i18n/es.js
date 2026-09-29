@@ -174,6 +174,31 @@ export default {
   'dur.m': '{m} min',
   'dur.ms': '{m} min {s} s',
 
+  // ---------- Permisos de profesor y administración ----------
+  'access.title': 'Acceso de profesor',
+  'access.needed': 'Para crear exámenes, el administrador tiene que autorizar tu cuenta ({email}). Pulsa «Solicitar acceso» y te habilitará.',
+  'access.requested': 'Solicitud enviada el {date} con la cuenta {email}. En cuanto el administrador la apruebe, esta página se desbloqueará sola.',
+  'access.request': 'Solicitar acceso',
+  'admin.link': 'Administración',
+  'admin.title': 'Administración',
+  'admin.noAccess': 'Solo para administradores',
+  'admin.noAccessText': 'Entra con una cuenta de administrador para gestionar quién puede crear exámenes.',
+  'admin.requests': 'Solicitudes pendientes',
+  'admin.requestsEmpty': 'No hay solicitudes pendientes.',
+  'admin.requestedOn': 'solicitado el {date}',
+  'admin.approve': 'Aprobar',
+  'admin.reject': 'Rechazar',
+  'admin.confirmReject': '¿Rechazar esta solicitud? La persona podrá volver a solicitar acceso.',
+  'admin.teachers': 'Profesores autorizados',
+  'admin.teachersEmpty': 'Todavía no has autorizado a nadie.',
+  'admin.add': 'Autorizar',
+  'admin.addPh': 'correo@ejemplo.com',
+  'admin.addLabel': 'Correo del profesor que quieres autorizar',
+  'admin.addHint': 'El correo de su cuenta de Google. Podrá crear exámenes en cuanto entre.',
+  'admin.addedOn': 'autorizado el {date}',
+  'admin.revoke': 'Retirar acceso',
+  'admin.confirmRevoke': '¿Retirar el acceso a {email}? No podrá crear exámenes nuevos, pero conservará los que ya tiene.',
+
   // ---------- Errores: dicen qué ha pasado y cómo arreglarlo ----------
   'err.name_required': 'Escribe tu nombre y apellidos.',
   'err.code_format': 'El código tiene 6 cifras.',
@@ -189,5 +214,6 @@ export default {
   'err.popup_closed': 'Se cerró la ventana de Google antes de terminar. Pulsa otra vez «Entrar con Google».',
   'err.popup_blocked': 'El navegador ha bloqueado la ventana de Google. Permite las ventanas emergentes para este sitio y vuelve a intentarlo.',
   'err.permission': 'No tienes permiso para hacer eso. Comprueba que has entrado con la cuenta correcta.',
+  'err.email_invalid': 'Ese correo no es válido. Escríbelo completo, por ejemplo nombre@us.es.',
   'err.network': 'No hay conexión con el servidor. Comprueba la red e inténtalo de nuevo.',
 };

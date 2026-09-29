@@ -2,101 +2,213 @@
   "rules": {
     ".read": false,
     ".write": false,
-
+    "admins": {
+      "$key": {
+        ".read": "auth != null && auth.token.email_verified === true && $key === auth.token.email.toLowerCase().replace('.', ',')"
+      }
+    },
+    "allowedTeachers": {
+      ".read": "auth != null && (auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true)",
+      "$key": {
+        ".read": "auth != null && auth.token.email_verified === true && $key === auth.token.email.toLowerCase().replace('.', ',')",
+        ".write": "auth != null && (auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true)",
+        ".validate": "newData.hasChildren(['email', 'addedAt']) && newData.child('email').val().toLowerCase().replace('.', ',') === $key",
+        "email": {
+          ".validate": "newData.isString() && newData.val().length <= 254 && newData.val().contains('@')"
+        },
+        "addedAt": {
+          ".validate": "newData.val() === now"
+        },
+        "addedBy": {
+          ".validate": "newData.isString() && newData.val().length <= 254"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "accessRequests": {
+      ".read": "auth != null && (auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true)",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && ((auth.uid === $uid && auth.token.firebase.sign_in_provider === 'google.com' && auth.token.email_verified === true) || ((auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true) && !newData.exists()))",
+        ".validate": "newData.hasChildren(['email', 'requestedAt']) && newData.child('email').val() === auth.token.email",
+        "email": {
+          ".validate": "newData.isString()"
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length <= 120"
+        },
+        "requestedAt": {
+          ".validate": "newData.val() === now"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
     "codes": {
       "$code": {
         ".read": "auth != null",
-        ".write": "auth != null && auth.token.firebase.sign_in_provider === 'google.com' && ((newData.exists() && newData.child('ownerUid').val() === auth.uid && (!data.exists() || !root.child('exams/' + data.child('examId').val() + '/meta').exists() || root.child('exams/' + data.child('examId').val() + '/meta/status').val() === 'finished')) || (!newData.exists() && data.child('ownerUid').val() === auth.uid))",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider === 'google.com' && ((newData.exists() && newData.child('ownerUid').val() === auth.uid && ((auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true) || (auth.token.email_verified === true && root.child('allowedTeachers/' + auth.token.email.toLowerCase().replace('.', ',')).exists())) && (!data.exists() || !root.child('exams/' + data.child('examId').val() + '/meta').exists() || root.child('exams/' + data.child('examId').val() + '/meta/status').val() === 'finished')) || (!newData.exists() && data.child('ownerUid').val() === auth.uid))",
         ".validate": "$code.matches(/^[0-9]{6}$/) && newData.hasChildren(['examId', 'ownerUid'])",
-        "examId": { ".validate": "newData.isString() && newData.val().length <= 64" },
-        "ownerUid": { ".validate": "newData.isString()" },
-        "$other": { ".validate": false }
+        "examId": {
+          ".validate": "newData.isString() && newData.val().length <= 64"
+        },
+        "ownerUid": {
+          ".validate": "newData.isString()"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
-
     "teachers": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid && auth.token.firebase.sign_in_provider === 'google.com'",
         "exams": {
           "$examId": {
             ".validate": "newData.hasChildren(['name', 'code', 'createdAt'])",
-            "name": { ".validate": "newData.isString() && newData.val().length <= 120" },
-            "code": { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{6}$/)" },
-            "createdAt": { ".validate": "newData.isNumber()" },
-            "$other": { ".validate": false }
+            "name": {
+              ".validate": "newData.isString() && newData.val().length <= 120"
+            },
+            "code": {
+              ".validate": "newData.isString() && newData.val().matches(/^[0-9]{6}$/)"
+            },
+            "createdAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            },
+            ".write": "auth != null && auth.uid === $uid && auth.token.firebase.sign_in_provider === 'google.com' && (!newData.exists() || ((auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true) || (auth.token.email_verified === true && root.child('allowedTeachers/' + auth.token.email.toLowerCase().replace('.', ',')).exists())))"
           }
         },
-        "$other": { ".validate": false }
+        "$other": {
+          ".validate": false
+        }
       }
     },
-
     "exams": {
       "$examId": {
         ".read": "auth != null && data.child('meta/ownerUid').val() === auth.uid",
         ".write": "auth != null && data.child('meta/ownerUid').val() === auth.uid && !newData.exists()",
-
         "meta": {
           ".read": "auth != null && root.child('exams/' + $examId + '/students/' + auth.uid).exists()",
-          ".write": "auth != null && auth.token.firebase.sign_in_provider === 'google.com' && ((!data.exists() && newData.child('ownerUid').val() === auth.uid) || (data.exists() && newData.exists() && data.child('ownerUid').val() === auth.uid))",
+          ".write": "auth != null && auth.token.firebase.sign_in_provider === 'google.com' && ((!data.exists() && newData.child('ownerUid').val() === auth.uid && ((auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true) || (auth.token.email_verified === true && root.child('allowedTeachers/' + auth.token.email.toLowerCase().replace('.', ',')).exists()))) || (data.exists() && newData.exists() && data.child('ownerUid').val() === auth.uid))",
           ".validate": "newData.hasChildren(['name', 'durationMin', 'mode', 'toleranceMs', 'alertText', 'status', 'code', 'ownerUid', 'createdAt'])",
-          "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120 && (!data.exists() || data.val() === newData.val())" },
-          "durationMin": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 600 && (!data.exists() || data.val() === newData.val())" },
-          "mode": { ".validate": "(newData.val() === 'pestana' || newData.val() === 'ventana') && (!data.exists() || data.val() === newData.val())" },
-          "toleranceMs": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 60000 && (!data.exists() || data.val() === newData.val())" },
-          "alertText": { ".validate": "newData.isString() && newData.val().length <= 300 && (!data.exists() || data.val() === newData.val())" },
-          "code": { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{6}$/) && (!data.exists() || data.val() === newData.val())" },
-          "ownerUid": { ".validate": "newData.val() === auth.uid && (!data.exists() || data.val() === newData.val())" },
-          "createdAt": { ".validate": "(!data.exists() && newData.val() === now) || data.val() === newData.val()" },
-          "status": { ".validate": "(!data.exists() && newData.val() === 'waiting') || data.val() === newData.val() || (data.val() === 'waiting' && (newData.val() === 'active' || newData.val() === 'finished')) || (data.val() === 'active' && newData.val() === 'finished')" },
-          "startedAt": { ".validate": "(data.exists() && data.val() === newData.val()) || (!data.exists() && newData.val() === now && newData.parent().child('status').val() === 'active')" },
-          "endedAt": { ".validate": "(data.exists() && data.val() === newData.val()) || (!data.exists() && newData.val() === now && newData.parent().child('status').val() === 'finished')" },
+          "name": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120 && (!data.exists() || data.val() === newData.val())"
+          },
+          "durationMin": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 600 && (!data.exists() || data.val() === newData.val())"
+          },
+          "mode": {
+            ".validate": "(newData.val() === 'pestana' || newData.val() === 'ventana') && (!data.exists() || data.val() === newData.val())"
+          },
+          "toleranceMs": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 60000 && (!data.exists() || data.val() === newData.val())"
+          },
+          "alertText": {
+            ".validate": "newData.isString() && newData.val().length <= 300 && (!data.exists() || data.val() === newData.val())"
+          },
+          "code": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9]{6}$/) && (!data.exists() || data.val() === newData.val())"
+          },
+          "ownerUid": {
+            ".validate": "newData.val() === auth.uid && (!data.exists() || data.val() === newData.val())"
+          },
+          "createdAt": {
+            ".validate": "(!data.exists() && newData.val() === now) || data.val() === newData.val()"
+          },
+          "status": {
+            ".validate": "(!data.exists() && newData.val() === 'waiting') || data.val() === newData.val() || (data.val() === 'waiting' && (newData.val() === 'active' || newData.val() === 'finished')) || (data.val() === 'active' && newData.val() === 'finished')"
+          },
+          "startedAt": {
+            ".validate": "(data.exists() && data.val() === newData.val()) || (!data.exists() && newData.val() === now && newData.parent().child('status').val() === 'active')"
+          },
+          "endedAt": {
+            ".validate": "(data.exists() && data.val() === newData.val()) || (!data.exists() && newData.val() === now && newData.parent().child('status').val() === 'finished')"
+          },
           "tools": {
             ".validate": "!data.exists()",
             "$i": {
               ".validate": "$i.matches(/^[0-9]$/) && newData.hasChildren(['name', 'url'])",
-              "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
-              "url": { ".validate": "newData.isString() && newData.val().length <= 2000 && newData.val().matches(/^https?:\\/\\/.+/)" },
-              "$other": { ".validate": false }
+              "name": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60"
+              },
+              "url": {
+                ".validate": "newData.isString() && newData.val().length <= 2000 && newData.val().matches(/^https?:\\/\\/.+/)"
+              },
+              "$other": {
+                ".validate": false
+              }
             }
           },
-          "$other": { ".validate": false }
+          "$other": {
+            ".validate": false
+          }
         },
-
         "students": {
           "$uid": {
             ".read": "auth != null && auth.uid === $uid",
             ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('exams/' + $examId + '/meta').exists() && root.child('exams/' + $examId + '/meta/status').val() !== 'finished'",
             ".validate": "newData.hasChildren(['name', 'code', 'joinedAt']) && newData.child('code').val() === root.child('exams/' + $examId + '/meta/code').val()",
-            "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 80" },
-            "code": { ".validate": "newData.isString()" },
-            "joinedAt": { ".validate": "newData.val() === now" },
-            "$other": { ".validate": false }
+            "name": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 80"
+            },
+            "code": {
+              ".validate": "newData.isString()"
+            },
+            "joinedAt": {
+              ".validate": "newData.val() === now"
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         },
-
         "presence": {
           "$uid": {
             ".write": "auth != null && auth.uid === $uid && root.child('exams/' + $examId + '/students/' + $uid).exists()",
             ".validate": "newData.hasChildren(['online', 'changedAt'])",
-            "online": { ".validate": "newData.isBoolean()" },
-            "changedAt": { ".validate": "newData.val() === now" },
-            "$other": { ".validate": false }
+            "online": {
+              ".validate": "newData.isBoolean()"
+            },
+            "changedAt": {
+              ".validate": "newData.val() === now"
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         },
-
         "events": {
           "$uid": {
-            ".indexOn": ["ts"],
+            ".indexOn": [
+              "ts"
+            ],
             "$clientId": {
               ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('exams/' + $examId + '/students/' + $uid).exists() && root.child('exams/' + $examId + '/meta/status').val() === 'active'",
               ".validate": "$clientId.matches(/^[A-Za-z0-9_-]{1,64}$/) && newData.hasChildren(['type', 'ts'])",
-              "type": { ".validate": "newData.isString() && newData.val().matches(/^(exam_enter|away_start|away_end|fullscreen_exit|page_leave|disconnected|reconnected)$/)" },
-              "ts": { ".validate": "newData.val() === now" },
-              "clientTs": { ".validate": "newData.isNumber()" },
-              "durationMs": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400000 && newData.parent().child('type').val() === 'away_end'" },
-              "reason": { ".validate": "newData.isString() && newData.val().length <= 120" },
-              "$other": { ".validate": false }
+              "type": {
+                ".validate": "newData.isString() && newData.val().matches(/^(exam_enter|away_start|away_end|fullscreen_exit|page_leave|disconnected|reconnected)$/)"
+              },
+              "ts": {
+                ".validate": "newData.val() === now"
+              },
+              "clientTs": {
+                ".validate": "newData.isNumber()"
+              },
+              "durationMs": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400000 && newData.parent().child('type').val() === 'away_end'"
+              },
+              "reason": {
+                ".validate": "newData.isString() && newData.val().length <= 120"
+              },
+              "$other": {
+                ".validate": false
+              }
             }
           }
         }

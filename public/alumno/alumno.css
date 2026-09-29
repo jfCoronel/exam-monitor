@@ -6,6 +6,7 @@
   background: var(--ink); color: #fff;
 }
 .exam-bar .muted { color: #b8c4d4; }
+.bar-icon { width: 24px; height: 24px; vertical-align: -6px; margin-right: 6px; }
 .exam-bar-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .clock { font-size: 1.5rem; font-weight: 700; min-width: 5ch; text-align: right; }
 .clock.low { color: #ffcf7a; }

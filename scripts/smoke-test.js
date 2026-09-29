@@ -2,6 +2,7 @@
 // la app, contra los emuladores de Auth y RTDB. Ejecutar con `npm run smoke`.
 import { createBackend } from '../public/backend.js';
 import { isInfraction } from '../public/common.js';
+import { seedEmulator } from './seed-emulator.js';
 
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FALLA'} ${msg}`); if (!cond) failed++; };
@@ -14,18 +15,39 @@ async function waitFor(pred, ms = 5000) {
 let n = 0;
 const id = () => `c${Date.now()}${n++}`;
 
-// ---------- Profesor ----------
+const signIn = async (be, sub, email) => be.signInTeacher(be.googleCredential(JSON.stringify({ sub, email, email_verified: true })));
+const EXAM_INPUT = { name: 'Termodinámica', durationMin: 90, mode: 'pestana', toleranceMs: 3000, alertText: 'Registrado.',
+  tools: [{ name: 'fProperties', url: 'https://fproperties.jfcoronel.org/' }] };
+await seedEmulator({ admins: ['admin@us.es'] });
+
+// ---------- Permisos: solicitar y aprobar ----------
 const prof = createBackend({ emulator: true, name: 'prof' });
-await prof.signInTeacher(prof.googleCredential(JSON.stringify({ sub: 'prof-1', email: 'prof@us.es', email_verified: true })));
+await signIn(prof, 'prof-1', 'jose.prof@us.es');
 ok(prof.isTeacher(), 'el profesor entra con Google');
+let access = null;
+prof.watchAccess((st) => { access = st; });
+ok(await waitFor(() => access && !access.approved && !access.admin && access.request === null), 'sin autorizar y sin solicitud');
+ok(await rejects(prof.createExam(EXAM_INPUT), 'create_failed'), 'sin autorizar no puede crear exámenes');
+await prof.requestAccess();
+ok(await waitFor(() => access?.request?.email === 'jose.prof@us.es'), 'solicita acceso');
+
+const admin = createBackend({ emulator: true, name: 'admin' });
+await signIn(admin, 'admin-1', 'admin@us.es');
+let adminAccess = null, pending = [], allowed = [];
+admin.watchAccess((st) => { adminAccess = st; });
+ok(await waitFor(() => adminAccess?.admin === true), 'la administradora se reconoce como tal');
+admin.watchAdmin({ requests: (l) => { pending = l; }, teachers: (l) => { allowed = l; } });
+ok(await waitFor(() => pending.some((r) => r.email === 'jose.prof@us.es')), 'la administradora ve la solicitud');
+await admin.approveTeacher('jose.prof@us.es', pending.find((r) => r.email === 'jose.prof@us.es').id);
+ok(await waitFor(() => access?.approved === true && access.request === null), 'aprobado: el profesor lo ve en vivo');
+ok(await waitFor(() => pending.length === 0 && allowed.some((p) => p.email === 'jose.prof@us.es')), 'la solicitud pasa a la lista de autorizados');
+
+// ---------- Profesor ----------
 
 ok(await rejects(prof.createExam({ name: 'X', durationMin: 60, mode: 'pestana', toleranceMs: 0, alertText: 'a',
   tools: [{ name: 'x', url: 'javascript:alert(1)' }] })), 'rechaza URLs no http(s)');
 
-const exam = await prof.createExam({
-  name: 'Termodinámica', durationMin: 90, mode: 'pestana', toleranceMs: 3000, alertText: 'Registrado.',
-  tools: [{ name: 'fProperties', url: 'https://fproperties.jfcoronel.org/' }],
-});
+const exam = await prof.createExam(EXAM_INPUT);
 ok(/^\d{6}$/.test(exam.code), `crea examen con código de 6 cifras (${exam.code})`);
 ok((await prof.listMyExams()).some((e) => e.id === exam.id), 'aparece en "mis exámenes"');
 
@@ -93,7 +115,7 @@ ok(await waitFor(() => seen.events.some((e) => e.type === 'reconnected')), 'reco
 
 // ---------- Otro profesor ----------
 const intruso = createBackend({ emulator: true, name: 'otro' });
-await intruso.signInTeacher(intruso.googleCredential(JSON.stringify({ sub: 'prof-2', email: 'otro@us.es', email_verified: true })));
+await signIn(intruso, 'prof-2', 'otro@us.es');
 let denied = false;
 intruso.watchExam(exam.id, { error: () => { denied = true; } });
 ok(await waitFor(() => denied), 'otro profesor no puede ver el panel');
@@ -109,6 +131,11 @@ ok(await rejects(al2.joinExam(exam.code, 'Luis')), 'no se puede unir a un examen
 await prof.deleteExam({ ...seen.meta });
 ok(await waitFor(() => seen.meta === null), 'el profesor borra el examen');
 ok(!(await prof.listMyExams()).some((e) => e.id === exam.id), 'desaparece de "mis exámenes"');
+
+// ---------- Retirar el permiso ----------
+await admin.revokeTeacher('jose.prof@us.es');
+ok(await waitFor(() => access?.approved === false), 'retirado: el profesor lo ve en vivo');
+ok(await rejects(prof.createExam(EXAM_INPUT), 'create_failed'), 'sin permiso ya no crea exámenes');
 
 console.log(failed ? `\n${failed} fallo(s)` : '\nTodo correcto');
 process.exit(failed ? 1 : 0);

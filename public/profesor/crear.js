@@ -1,4 +1,4 @@
-import { $, esc, fmtDateTime } from '../common.js';
+import { $, esc, fmtDateTime, mountFooter } from '../common.js';
 import { t, mountLangSwitch, applyI18n } from '../i18n/index.js';
 import { createBackend } from '../backend.js';
 
@@ -6,22 +6,53 @@ const be = createBackend();
 const toolsBox = $('#tools');
 const tpl = $('#tool-row');
 let myExams = [];
+let access = null;     // { admin, approved, request }
+let stopAccess = null;
 
 // ---------- Acceso ----------
+// Para crear exámenes hace falta que el administrador apruebe la cuenta (lo exigen las reglas).
 function showState(state) {
-  $('#loading').hidden = state !== 'loading';
-  $('#signin').hidden = state !== 'signin';
-  $('#teacher').hidden = state !== 'teacher';
+  for (const s of ['loading', 'signin', 'pending', 'teacher']) $(`#${s}`).hidden = s !== state;
 }
 
-be.onUser(async (user) => {
+be.onUser((user) => {
+  stopAccess?.(); stopAccess = null; access = null;
   const teacher = be.isTeacher(user);
   $('#user-email').hidden = $('#btn-signout').hidden = !teacher;
+  $('#admin-link').hidden = true;
   if (!teacher) return showState('signin');
   $('#user-email').textContent = user.email || '';
-  showState('teacher');
-  try { myExams = await be.listMyExams(); } catch { myExams = []; }
-  renderMyExams();
+  showState('loading');
+  stopAccess = be.watchAccess(async (st) => {
+    const wasApproved = access?.approved;
+    access = st;
+    $('#admin-link').hidden = !st.admin;
+    if (!st.approved) { renderPending(); return showState('pending'); }
+    showState('teacher');
+    if (!wasApproved) {
+      try { myExams = await be.listMyExams(); } catch { myExams = []; }
+      renderMyExams();
+    }
+  });
+});
+
+function renderPending() {
+  const req = access?.request;
+  $('#pending-text').textContent = req
+    ? t('access.requested', { email: req.email, date: fmtDateTime(req.requestedAt) })
+    : t('access.needed', { email: be.currentUser()?.email || '' });
+  $('#btn-request').hidden = !!req;
+}
+
+$('#btn-request').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const errEl = $('#pending-error');
+  errEl.hidden = true;
+  btn.disabled = true;
+  try { await be.requestAccess(); } catch (err) {
+    errEl.textContent = t(`err.${err.code || 'network'}`);
+    errEl.hidden = false;
+  } finally { btn.disabled = false; }
 });
 
 $('#btn-signin').addEventListener('click', async (e) => {
@@ -104,10 +135,12 @@ $('#create-form').addEventListener('submit', async (e) => {
 
 // ---------- Idioma ----------
 mountLangSwitch();
+mountFooter();
 setDefaultAlert();
 document.title = `${t('create.title')} | ${t('app.name')}`;
 document.addEventListener('langchange', () => {
   setDefaultAlert();
   renderMyExams();
+  if (access && !access.approved) renderPending();
   document.title = `${t('create.title')} | ${t('app.name')}`;
 });

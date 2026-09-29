@@ -1,5 +1,6 @@
 // Utilidades compartidas por la PWA del alumno y el panel del profesor. Sin DOM salvo $.
 import { t, locale } from './i18n/index.js';
+import { VERSION } from './version.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -56,5 +57,12 @@ export function eventText(e) {
     case 'away_start': return t('ev.away_start', { reason: reasonText(e.reason) });
     case 'away_end': return t('ev.away_end', { dur: fmtDur(e.durationMs ?? 0) });
     default: return t(`ev.${e.type}`);
+  }
+}
+
+/** Pie común: copyright, versión y enlace a jfcoronel.org. No se traduce. */
+export function mountFooter(root = document) {
+  for (const el of root.querySelectorAll('.site-footer')) {
+    el.innerHTML = `© 2026 Juan F. Coronel · Exam Monitor v${VERSION} · <a href="https://jfcoronel.org" target="_blank" rel="noopener">jfcoronel.org</a>`;
   }
 }

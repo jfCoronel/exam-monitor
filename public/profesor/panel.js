@@ -1,4 +1,4 @@
-import { $, esc, fmtClock, fmtDur, fmtTime, eventTime, isInfraction, isNotable, eventText, reasonText } from '../common.js';
+import { $, esc, fmtClock, fmtDur, fmtTime, eventTime, isInfraction, isNotable, eventText, reasonText, mountFooter } from '../common.js';
 import { t, getLang, locale, mountLangSwitch } from '../i18n/index.js';
 import { createBackend } from '../backend.js';
 
@@ -257,4 +257,5 @@ setInterval(() => {
 
 // ---------- Idioma ----------
 mountLangSwitch();
+mountFooter();
 document.addEventListener('langchange', () => { renderHeader(); renderAll(); });

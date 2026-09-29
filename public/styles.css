@@ -159,3 +159,14 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 body:has(#view-exam:not([hidden])) .lang-float { display: none; }
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
 .topbar .brand { font-weight: 700; text-decoration: none; color: var(--ink); }
+
+/* ---------- Marca y pie ---------- */
+.brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; text-decoration: none; color: var(--ink); }
+.brand img { width: 28px; height: 28px; flex: none; }
+.brand-title { display: flex; align-items: center; gap: 14px; }
+.brand-title img { width: 56px; height: 56px; }
+.brand-float { position: fixed; top: 14px; left: 16px; z-index: 5; }
+body:has(#view-exam:not([hidden])) .brand-float { display: none; }
+.site-footer { text-align: center; font-size: .8125rem; color: var(--muted); padding: 24px 16px 32px; }
+.site-footer a { color: inherit; }
+body:has(#view-exam:not([hidden])) .site-footer { display: none; }

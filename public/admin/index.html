@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administración | Exam Monitor</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <style>
+    .people { list-style: none; padding: 0; margin: 0; }
+    .people li { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 10px 0; border-bottom: 1px solid var(--grid); }
+    .people li:last-child { border-bottom: 0; }
+    .people .who strong { display: block; }
+    .add-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .add-row input { flex: 1; min-width: 16rem; }
+    .count { color: var(--muted); font-weight: 400; }
+  </style>
+  <script type="importmap">
+    { "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js",
+      "firebase/database": "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js"
+    } }
+  </script>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <a class="brand" href="../profesor/"><img src="../icons/icon.svg" alt=""> <span data-i18n="app.name">Exam Monitor</span></a>
+      <div class="row">
+        <span class="small muted" id="user-email" hidden></span>
+        <button class="btn-quiet small" id="btn-signout" hidden data-i18n="auth.signOut">Cerrar sesión</button>
+        <div class="lang-switch"></div>
+      </div>
+    </header>
+
+    <p class="muted" id="loading" data-i18n="common.loading">Cargando…</p>
+
+    <section class="sheet stack" id="no-admin" hidden>
+      <h1 data-i18n="admin.noAccess">Solo para administradores</h1>
+      <p data-i18n="admin.noAccessText">Entra con una cuenta de administrador para gestionar quién puede crear exámenes.</p>
+      <p class="error" id="signin-error" role="alert" hidden></p>
+      <div class="row">
+        <button class="btn-primary" id="btn-signin" data-i18n="auth.google">Entrar con Google</button>
+        <a class="btn" href="../profesor/" data-i18n="panel.myExams">Mis exámenes</a>
+      </div>
+    </section>
+
+    <div id="admin" hidden>
+      <h1 data-i18n="admin.title">Administración</h1>
+      <p class="error" id="admin-error" role="alert" hidden></p>
+
+      <section class="sheet stack">
+        <h2><span data-i18n="admin.requests">Solicitudes pendientes</span> <span class="count" id="req-count"></span></h2>
+        <ul class="people" id="requests"></ul>
+        <p class="muted" id="requests-empty" data-i18n="admin.requestsEmpty">No hay solicitudes pendientes.</p>
+      </section>
+
+      <section class="sheet stack">
+        <h2><span data-i18n="admin.teachers">Profesores autorizados</span> <span class="count" id="teach-count"></span></h2>
+        <form class="add-row" id="add-form" novalidate>
+          <input type="email" id="add-email" autocomplete="off" data-i18n-attr="placeholder:admin.addPh;aria-label:admin.addLabel">
+          <button type="submit" class="btn-primary" data-i18n="admin.add">Autorizar</button>
+        </form>
+        <p class="hint" data-i18n="admin.addHint">El correo de su cuenta de Google. Podrá crear exámenes en cuanto entre.</p>
+        <ul class="people" id="teachers"></ul>
+        <p class="muted" id="teachers-empty" data-i18n="admin.teachersEmpty">Todavía no has autorizado a nadie.</p>
+      </section>
+    </div>
+  </main>
+  <footer class="site-footer"></footer>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>

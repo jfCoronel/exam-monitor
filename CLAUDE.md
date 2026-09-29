@@ -45,9 +45,12 @@ public/i18n/            index.js (t, applyI18n, selector), es.js, en.js
 public/alumno/          PWA del alumno (unirse, sala de espera, examen, monitor de foco)
 public/profesor/        Acceso con Google + crear examen (index.html, crear.js), panel en vivo (panel.*)
 public/sw.js            Service worker (red primero, caché de respaldo); rutas relativas
+public/admin/           Administración: solicitudes y profesores autorizados
+public/version.js       Versión de la app (única fuente; se muestra en el pie)
 scripts/smoke-test.js   E2E con backend.js en Node
+scripts/seed-emulator.js  Datos de partida en el emulador (admin y profesor de prueba)
 scripts/dev-server.js   Servidor estático de desarrollo
-test/                   rules.test.js (emulador), i18n.test.js
+test/                   rules.test.js (emulador), i18n.test.js, version.test.js
 ```
 
 Todas las rutas son **relativas** (la app funciona en un dominio propio, en un subdirectorio y en local).
@@ -62,7 +65,13 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
 /exams/{examId}/presence/{uid}     { online, changedAt }       onDisconnect() lo pone a false
 /exams/{examId}/events/{uid}/{clientId}  { type, ts, clientTs?, durationMs?, reason? }
 /teachers/{uid}/exams/{examId}     { name, code, createdAt }
+/admins/{emailKey}                 true                        solo se edita desde consola o CLI
+/allowedTeachers/{emailKey}        { email, addedAt, addedBy }  profesores autorizados (los gestiona el admin)
+/accessRequests/{uid}              { email, name?, requestedAt } solicitudes pendientes
 ```
+
+`emailKey` = correo en minúsculas con `.` → `,` (`emailKey()` en backend.js; las reglas hacen lo mismo con
+`auth.token.email.toLowerCase().replace('.', ',')`).
 
 - `status`: `waiting → active → finished` (o `waiting → finished`). Nunca vuelve atrás.
 - La configuración del examen es inmutable una vez creado.
@@ -73,6 +82,18 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
   `away_end` con `durationMs >= toleranceMs`, o un `page_leave`.
 - `type` y `reason` son códigos independientes del idioma. `reason`: `hidden`, `blur`, `window`,
   `tool:<nombre>`. Se traducen al mostrarlos.
+
+## Permisos de profesor
+
+- Crear exámenes exige estar en `/allowedTeachers` o en `/admins` (reglas de `codes`, `meta` y
+  `teachers`). La aprobación es por cuenta y permanente: una sola solicitud, exámenes ilimitados,
+  hasta que el admin la retire. Sin permiso se pueden seguir finalizando y borrando los exámenes propios.
+- Flujo: el profesor sin permiso pulsa «Solicitar acceso» → el admin aprueba en `/admin/` → la página
+  del profesor se desbloquea sola (`watchAccess`).
+- Administrador en producción: jfcoroneltoro@gmail.com. Añadir otro:
+  `npx firebase database:set "/admins/<correo con , en vez de .>" --data true`.
+- En los emuladores, `scripts/seed-emulator.js` crea `admin@example.com` (admin) y
+  `profesor@example.com` (autorizado); en la ventana de Google del emulador, «Add new account» y ese correo.
 
 ## Eventos
 
@@ -121,6 +142,13 @@ CSP, comprobado el 27/09/2026). Para otras URLs, comprobar con `curl -I <url>`.
 - Comentarios del código en español.
 
 ## Convenciones
+
+- **Versión**: al publicar algo que se vaya a probar, subir la versión en `public/version.js`,
+  `package.json` y la `CACHE` de `public/sw.js` (lo comprueba `test/version.test.js`). Semver: 0.x
+  hasta la v1.0.
+- Pie en todas las páginas (`mountFooter()`): © 2026 Juan F. Coronel · versión · jfcoronel.org. Se
+  oculta durante el examen. Icono: `public/icons/icon.svg` (hoja con casillas y un ojo); los PNG se
+  generan a partir del SVG.
 
 - El cliente no es de confianza: toda validación que importe va en `database.rules.json`, con su
   test en `test/rules.test.js`. El cliente valida antes solo para dar mensajes claros.

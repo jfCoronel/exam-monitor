@@ -174,6 +174,31 @@ export default {
   'dur.m': '{m} min',
   'dur.ms': '{m} min {s} s',
 
+  // ---------- Teacher permissions and admin ----------
+  'access.title': 'Teacher access',
+  'access.needed': 'To create exams, the administrator has to authorise your account ({email}). Click “Request access” and they will enable it.',
+  'access.requested': 'Request sent on {date} with the account {email}. As soon as the administrator approves it, this page will unlock by itself.',
+  'access.request': 'Request access',
+  'admin.link': 'Admin',
+  'admin.title': 'Admin',
+  'admin.noAccess': 'Administrators only',
+  'admin.noAccessText': 'Sign in with an administrator account to manage who can create exams.',
+  'admin.requests': 'Pending requests',
+  'admin.requestsEmpty': 'No pending requests.',
+  'admin.requestedOn': 'requested on {date}',
+  'admin.approve': 'Approve',
+  'admin.reject': 'Reject',
+  'admin.confirmReject': 'Reject this request? The person will be able to request access again.',
+  'admin.teachers': 'Authorised teachers',
+  'admin.teachersEmpty': 'You haven’t authorised anyone yet.',
+  'admin.add': 'Authorise',
+  'admin.addPh': 'email@example.com',
+  'admin.addLabel': 'Email of the teacher you want to authorise',
+  'admin.addHint': 'The email of their Google account. They can create exams as soon as they sign in.',
+  'admin.addedOn': 'authorised on {date}',
+  'admin.revoke': 'Revoke access',
+  'admin.confirmRevoke': 'Revoke access for {email}? They won’t be able to create new exams, but will keep the ones they have.',
+
   // ---------- Errors: say what happened and how to fix it ----------
   'err.name_required': 'Type your full name.',
   'err.code_format': 'The code has 6 digits.',
@@ -189,5 +214,6 @@ export default {
   'err.popup_closed': 'The Google window was closed before finishing. Click “Sign in with Google” again.',
   'err.popup_blocked': 'The browser blocked the Google window. Allow pop-ups for this site and try again.',
   'err.permission': 'You don’t have permission to do that. Check that you signed in with the right account.',
+  'err.email_invalid': 'That email isn’t valid. Type it in full, for example name@example.com.',
   'err.network': 'There’s no connection to the server. Check the network and try again.',
 };
