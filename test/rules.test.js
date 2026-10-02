@@ -1,5 +1,6 @@
 // Tests de las reglas de seguridad de RTDB. Se ejecutan contra el emulador: `npm run test:rules`.
 import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 
@@ -26,8 +27,12 @@ const createExam = (db, { examId = EXAM, code = CODE, owner = 'prof', m = {} } =
   [`exams/${examId}/meta`]: meta({ code, ownerUid: owner, ...m }),
   [`teachers/${owner}/exams/${examId}`]: { name: 'Termodinámica', code, createdAt: Date.now() },
 });
-const join = (uid, code = CODE, examId = EXAM) =>
-  anon(uid).ref(`exams/${examId}/students/${uid}`).set({ name: 'Ana López', code, joinedAt: TS });
+/** Se une con el siguiente número de orden (o con `num`, para probar números incorrectos). */
+const join = async (uid, { code = CODE, examId = EXAM, num } = {}) => {
+  const db = anon(uid);
+  const n = num ?? ((await db.ref(`exams/${examId}/lastNum`).get()).val() || 0) + 1;
+  return db.ref(`exams/${examId}`).update({ lastNum: n, [`students/${uid}`]: { name: 'Ana López', code, num: n, joinedAt: TS } });
+};
 const event = (uid, clientId, data, examId = EXAM) =>
   anon(uid).ref(`exams/${examId}/events/${uid}/${clientId}`).set({ ts: TS, clientTs: Date.now(), ...data });
 const setStatus = (db, status, extra = {}, examId = EXAM) =>
@@ -74,7 +79,7 @@ test('unirse y leer', async (t) => {
   await t.test('el alumno resuelve el código', () => assertSucceeds(anon('al1').ref(`codes/${CODE}`).get()));
   await t.test('no se pueden listar los códigos', () => assertFails(anon('al1').ref('codes').get()));
   await t.test('no puede leer el examen antes de unirse', () => assertFails(anon('al1').ref(`exams/${EXAM}/meta`).get()));
-  await t.test('código incorrecto: no se une', () => assertFails(join('al1', '999999')));
+  await t.test('código incorrecto: no se une', () => assertFails(join('al1', { code: '999999' })));
   await t.test('no puede unirse en nombre de otro', () =>
     assertFails(anon('al1').ref(`exams/${EXAM}/students/al2`).set({ name: 'X', code: CODE, joinedAt: TS })));
   await t.test('se une con el código correcto', () => assertSucceeds(join('al1')));
@@ -202,4 +207,51 @@ test('profesores autorizados', async (t) => {
   });
   await t.test('la administradora crea exámenes sin estar en la lista', () =>
     assertSucceeds(createExam(google('admin'), { examId: 'exam3', code: '111111', owner: 'admin' })));
+});
+
+test('número de orden', async (t) => {
+  await reset();
+  await createExam(google('prof'));
+  const num = async (uid) => (await google('prof').ref(`exams/${EXAM}/students/${uid}/num`).get()).val();
+  await t.test('el primero recibe el 1', async () => { await assertSucceeds(join('al1')); assert.equal(await num('al1'), 1); });
+  await t.test('no puede repetir un número ya asignado', () => assertFails(join('al2', { num: 1 })));
+  await t.test('no puede saltarse números', () => assertFails(join('al2', { num: 3 })));
+  await t.test('no se une sin actualizar el contador', () =>
+    assertFails(anon('al2').ref(`exams/${EXAM}/students/al2`).set({ name: 'X', code: CODE, num: 2, joinedAt: TS })));
+  await t.test('no puede tocar el contador sin unirse', () => assertFails(anon('al2').ref(`exams/${EXAM}/lastNum`).set(2)));
+  await t.test('quien ya está unido no puede mover el contador', () => assertFails(anon('al1').ref(`exams/${EXAM}`).update({
+    lastNum: 2, 'students/al1/num': 2,
+  })));
+  await t.test('el segundo recibe el 2', async () => { await assertSucceeds(join('al2')); assert.equal(await num('al2'), 2); });
+  await t.test('si varios se unen a la vez con el mismo número, solo uno lo consigue', async () => {
+    const r = await Promise.allSettled(['al3', 'al4', 'al5'].map((u) => join(u, { num: 3 })));
+    assert.equal(r.filter((x) => x.status === 'fulfilled').length, 1);
+  });
+});
+
+test('duración y fin por tiempo', async (t) => {
+  await reset();
+  await createExam(google('prof'));
+  await join('al1');
+  const duration = (db, min) => db.ref(`exams/${EXAM}/meta/durationMin`).set(min);
+  /** Simula que el examen empezó hace `agoMin` minutos (startedAt solo lo puede poner el servidor). */
+  const startedAgo = (agoMin) => env.withSecurityRulesDisabled((ctx) =>
+    ctx.database().ref(`exams/${EXAM}/meta/startedAt`).set(Date.now() - agoMin * 60_000));
+  await t.test('el profesor cambia la duración antes de empezar', () => assertSucceeds(duration(google('prof'), 60)));
+  await t.test('otro profesor no puede', () => assertFails(duration(google('otro'), 120)));
+  await t.test('el alumno no puede', () => assertFails(duration(anon('al1'), 120)));
+  await t.test('fuera de rango, no', () => assertFails(duration(google('prof'), 601)));
+  await setStatus(google('prof'), 'active', { startedAt: TS });
+  await t.test('y durante el examen', () => assertSucceeds(duration(google('prof'), 90)));
+  await startedAgo(91);
+  await t.test('agotado el tiempo, durante la cortesía, sí registra eventos', () => assertSucceeds(event('al1', 'g1', { type: 'away_start' })));
+  await startedAgo(93);
+  await t.test('pasada la cortesía, no registra eventos', () => assertFails(event('al1', 'g2', { type: 'away_start' })));
+  await t.test('ni puede terminar', () => assertFails(anon('al1').ref(`exams/${EXAM}/submitted/al1`).set(TS)));
+  await t.test('si el profesor alarga el tiempo, vuelve a registrar', async () => {
+    await assertSucceeds(duration(google('prof'), 100));
+    await assertSucceeds(event('al1', 'g3', { type: 'away_end', durationMs: 1000 }));
+  });
+  await setStatus(google('prof'), 'finished', { endedAt: TS });
+  await t.test('con el examen finalizado ya no se cambia', () => assertFails(duration(google('prof'), 120)));
 });

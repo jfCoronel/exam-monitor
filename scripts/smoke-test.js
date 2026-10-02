@@ -66,9 +66,17 @@ const wrong = exam.code === '000000' ? '000001' : '000000';
 ok(await rejects(al.joinExam(wrong, 'Ana'), 'code_not_found'), 'código incorrecto: no hay examen');
 const joined = await al.joinExam(exam.code, 'Ana López');
 ok(joined.examId === exam.id, 'el alumno se une');
+ok(joined.num === 1, `el primero en unirse recibe el número 1 (recibió ${joined.num})`);
 const alUid = al.currentUser().uid;
 ok(await waitFor(() => seen.students.get(alUid)?.name === 'Ana López'), 'el panel ve al alumno unirse');
-ok((await al.joinExam(exam.code, 'Otro nombre')).name === 'Ana López', 'unirse otra vez desde el mismo navegador no duplica');
+const again = await al.joinExam(exam.code, 'Otro nombre');
+ok(again.name === 'Ana López' && again.num === 1, 'unirse otra vez desde el mismo navegador no duplica ni cambia el número');
+ok(await waitFor(() => seen.students.get(alUid)?.num === 1), 'el panel ve el número del alumno');
+
+// Varios alumnos a la vez: números distintos y consecutivos, sin huecos.
+const crowd = Array.from({ length: 8 }, (_, i) => createBackend({ emulator: true, name: `crowd${i}` }));
+const nums = (await Promise.all(crowd.map((b, i) => b.joinExam(exam.code, `Alumno ${i}`)))).map((r) => r.num).sort((a, b) => a - b);
+ok(nums.join() === '2,3,4,5,6,7,8,9', `8 alumnos a la vez reciben los números 2 a 9 (${nums.join(', ')})`);
 
 let alMeta = null;
 al.watchMeta(exam.id, (m) => { alMeta = m; });
@@ -77,6 +85,10 @@ ok(await waitFor(() => seen.online.get(alUid) === true), 'presencia online en el
 ok(await waitFor(() => alMeta?.tools?.[0]?.name === 'fProperties'), 'el alumno lee la configuración y las herramientas');
 
 ok(await rejects(al.sendEvent(exam.id, { clientId: id(), type: 'exam_enter' }), 'permission'), 'no registra eventos antes de iniciar');
+
+// ---------- Duración ----------
+await prof.setDuration(exam.id, 120);
+ok(await waitFor(() => alMeta?.durationMin === 120), 'el profesor cambia la duración y el alumno la recibe');
 
 // ---------- Examen en curso ----------
 await prof.startExam(exam.id);
@@ -132,6 +144,7 @@ ok(await rejects(intruso.finishExam(exam.id, exam.code)), 'otro profesor no pued
 // ---------- Fin ----------
 await prof.finishExam(exam.id, exam.code);
 ok(await waitFor(() => alMeta?.status === 'finished'), 'el alumno recibe el fin del examen');
+ok(await rejects(prof.setDuration(exam.id, 30)), 'con el examen finalizado no se cambia la duración');
 ok(await rejects(al.sendEvent(exam.id, { clientId: id(), type: 'away_start' })), 'no registra eventos con el examen finalizado');
 const al2 = createBackend({ emulator: true, name: 'al2' });
 ok(await rejects(al2.joinExam(exam.code, 'Luis')), 'no se puede unir a un examen finalizado');

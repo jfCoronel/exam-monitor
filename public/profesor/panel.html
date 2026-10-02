@@ -50,6 +50,7 @@
       <div class="row">
         <button class="btn-primary btn-big" id="btn-start" hidden data-i18n="panel.start">Iniciar examen</button>
         <span class="clock-t" id="p-clock" hidden></span>
+        <button id="btn-duration" hidden data-i18n="panel.duration">Cambiar duración</button>
         <button class="btn-danger" id="btn-end" hidden data-i18n="panel.end">Finalizar examen</button>
         <button id="btn-project" data-i18n="panel.project">Proyectar código</button>
         <button id="btn-csv" data-i18n="panel.csv">Exportar CSV</button>
@@ -75,28 +76,39 @@
       <div class="c-ok"><strong id="c-done">0</strong><span data-i18n="panel.cDone">han terminado</span></div>
     </section>
 
-    <div class="panel-body">
-      <section>
-        <div class="row spread">
-          <h2 data-i18n="panel.students">Alumnos</h2>
-          <label class="small" style="font-weight:400"><input type="checkbox" id="only-flagged"> <span data-i18n="panel.onlyFlagged">Solo con incidencias</span></label>
-        </div>
-        <div class="grid" id="grid"></div>
-        <p class="muted" id="grid-empty" data-i18n="panel.empty">Todavía no se ha unido nadie. Proyecta el código para que los alumnos entren.</p>
-      </section>
-      <aside class="side sheet" id="side">
-        <div id="side-feed">
-          <h2 data-i18n="panel.feed">Últimas incidencias</h2>
-          <ol class="log" id="feed"></ol>
-          <p class="muted small" id="feed-empty" data-i18n="panel.feedEmpty">Sin incidencias por ahora.</p>
-        </div>
-        <div id="side-student" hidden>
-          <div class="row spread"><h2 id="s-name"></h2><button class="btn-quiet" id="s-close" data-i18n="common.close">Cerrar</button></div>
-          <p class="small muted" id="s-summary"></p>
-          <ol class="log" id="s-log"></ol>
-        </div>
-      </aside>
-    </div>
+    <section class="students">
+      <div class="row spread">
+        <h2 data-i18n="panel.students">Alumnos</h2>
+        <label class="filter"><span data-i18n="panel.show">Mostrar</span>
+          <select id="filter">
+            <option value="all" data-i18n="panel.f.all">Todos</option>
+            <option value="attention" data-i18n="panel.f.attention">Requieren atención</option>
+            <option value="away" data-i18n="panel.f.away">Fuera ahora</option>
+            <option value="flagged" data-i18n="panel.f.flagged">Con incidencias</option>
+            <option value="offline" data-i18n="panel.f.offline">Sin conexión</option>
+            <option value="notEntered" data-i18n="panel.f.notEntered">Sin entrar</option>
+            <option value="in" data-i18n="panel.f.in">En el examen</option>
+            <option value="done" data-i18n="panel.f.done">Han terminado</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid" id="grid"></div>
+      <p class="muted" id="grid-empty" data-i18n="panel.empty">Todavía no se ha unido nadie. Proyecta el código para que los alumnos entren.</p>
+      <p class="muted" id="grid-none" hidden></p>
+    </section>
+
+    <!-- Registro: últimas incidencias de la clase o, al pulsar una tarjeta, todos los eventos de ese alumno -->
+    <details class="log-box" id="log-box">
+      <summary id="log-title"></summary>
+      <div id="side-feed">
+        <ol class="log" id="feed"></ol>
+        <p class="muted small" id="feed-empty" data-i18n="panel.feedEmpty">Sin incidencias por ahora.</p>
+      </div>
+      <div id="side-student" hidden>
+        <div class="row spread"><p class="small muted" id="s-summary"></p><button class="btn-quiet" id="s-close" data-i18n="panel.backToFeed">Ver últimas incidencias</button></div>
+        <ol class="log" id="s-log"></ol>
+      </div>
+    </details>
   </div>
 
   <footer class="site-footer"></footer>

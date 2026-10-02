@@ -101,7 +101,7 @@
             ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120 && (!data.exists() || data.val() === newData.val())"
           },
           "durationMin": {
-            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 600 && (!data.exists() || data.val() === newData.val())"
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 600 && (!data.exists() || data.val() === newData.val() || data.parent().child('status').val() !== 'finished')"
           },
           "mode": {
             ".validate": "(newData.val() === 'pestana' || newData.val() === 'ventana') && (!data.exists() || data.val() === newData.val())"
@@ -149,13 +149,21 @@
             ".validate": false
           }
         },
+        "lastNum": {
+          ".read": "auth != null",
+          ".write": "auth != null && !data.parent().child('students/' + auth.uid).exists() && newData.parent().child('students/' + auth.uid + '/num').val() === newData.val()",
+          ".validate": "newData.isNumber() && ((!data.exists() && newData.val() === 1) || newData.val() === data.val() + 1)"
+        },
         "students": {
           "$uid": {
             ".read": "auth != null && auth.uid === $uid",
             ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('exams/' + $examId + '/meta').exists() && root.child('exams/' + $examId + '/meta/status').val() !== 'finished'",
-            ".validate": "newData.hasChildren(['name', 'code', 'joinedAt']) && newData.child('code').val() === root.child('exams/' + $examId + '/meta/code').val()",
+            ".validate": "newData.hasChildren(['name', 'code', 'joinedAt', 'num']) && newData.child('code').val() === root.child('exams/' + $examId + '/meta/code').val()",
             "name": {
               ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 80"
+            },
+            "num": {
+              ".validate": "newData.isNumber() && newData.val() === newData.parent().parent().parent().child('lastNum').val() && ((!root.child('exams/' + $examId + '/lastNum').exists() && newData.val() === 1) || newData.val() === root.child('exams/' + $examId + '/lastNum').val() + 1)"
             },
             "code": {
               ".validate": "newData.isString()"
@@ -189,7 +197,7 @@
               "ts"
             ],
             "$clientId": {
-              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('exams/' + $examId + '/students/' + $uid).exists() && root.child('exams/' + $examId + '/meta/status').val() === 'active' && !root.child('exams/' + $examId + '/submitted/' + $uid).exists()",
+              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('exams/' + $examId + '/students/' + $uid).exists() && root.child('exams/' + $examId + '/meta/status').val() === 'active' && !root.child('exams/' + $examId + '/submitted/' + $uid).exists() && now <= root.child('exams/' + $examId + '/meta/startedAt').val() + root.child('exams/' + $examId + '/meta/durationMin').val() * 60000 + 120000",
               ".validate": "$clientId.matches(/^[A-Za-z0-9_-]{1,64}$/) && newData.hasChildren(['type', 'ts'])",
               "type": {
                 ".validate": "newData.isString() && newData.val().matches(/^(exam_enter|away_start|away_end|fullscreen_exit|page_leave|disconnected|reconnected|exam_submit)$/)"
@@ -215,7 +223,7 @@
         "submitted": {
           "$uid": {
             ".read": "auth != null && auth.uid === $uid",
-            ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('exams/' + $examId + '/students/' + $uid).exists() && root.child('exams/' + $examId + '/meta/status').val() === 'active'",
+            ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('exams/' + $examId + '/students/' + $uid).exists() && root.child('exams/' + $examId + '/meta/status').val() === 'active' && now <= root.child('exams/' + $examId + '/meta/startedAt').val() + root.child('exams/' + $examId + '/meta/durationMin').val() * 60000 + 120000",
             ".validate": "newData.val() === now"
           }
         }

@@ -28,8 +28,23 @@ export function fmtClock(ms) {
   return h ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
 }
 
+export const fmtHM = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 export const fmtTime = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 export const fmtDateTime = (ms) => new Date(ms).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' });
+
+// ---------- Tiempo del examen ----------
+// Al agotarse la duración hay un margen de cortesía; después el examen se cierra solo.
+// Las reglas de eventos usan el mismo margen (120000 en database.rules.json).
+export const GRACE_MS = 2 * 60_000;
+
+/** Hora (del servidor) a la que se agota el tiempo, o null si el examen no ha empezado. */
+export const examEndsAt = (exam) => (exam?.startedAt ? exam.startedAt + exam.durationMin * 60_000 : null);
+
+/** Hora a la que termina la cortesía y el examen queda cerrado. */
+export const examClosesAt = (exam) => (exam?.startedAt ? examEndsAt(exam) + GRACE_MS : null);
+
+/** "Nº 7 · Ana López"; sin número en exámenes anteriores a la v0.5.0. */
+export const studentLabel = (s) => (s.num ? t('common.studentNum', { num: s.num, name: s.name }) : s.name);
 
 // ---------- Eventos ----------
 // Los datos guardados no dependen del idioma: type y reason son códigos que se traducen al mostrarlos.

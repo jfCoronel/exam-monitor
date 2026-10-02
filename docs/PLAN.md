@@ -11,17 +11,21 @@ prueba piloto real.
 
 ## Estado actual y siguiente paso
 
-*Actualizado el 27/09/2026.* Fases 0, 1 y 2 hechas y publicadas en https://exam-monitor.jfcoronel.org.
+*Actualizado el 02/10/2026.* Fases 0, 1 y 2 hechas y publicadas en https://exam-monitor.jfcoronel.org
+(primera prueba real el 29/09/2026). Fase 3 en curso (v0.5.0).
 
-1. **Siguiente:** prueba real con una cuenta de Google y dos navegadores (o un móvil): crear el
-   examen, unirse por código o QR, iniciar, salir y volver, finalizar y exportar el CSV. Anotar lo
-   que falle; es el criterio "Hecho cuando" de la fase 2.
-2. Después, fase 3.
+1. **Siguiente:** el resto de la fase 3 (herramienta que no carga, recarga durante el examen).
+2. Después, la verificación en Firefox y Safari (fase 4).
 
 Notas para retomar en otro equipo:
-- Hace falta Node ≥ 22 y Java ≥ 11 en el `PATH` y luego `npm install`. El CLI de Firebase es
-  dependencia de desarrollo: `npx firebase login` (una vez por equipo) y `npx firebase …`.
-  No hace falta `npm i -g`.
+- Hace falta Node ≥ 22 y Java ≥ 11 en el `PATH` y luego `npm ci`. Con Homebrew:
+  `brew install openjdk@21` y en `~/.zshrc` `export PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH"`.
+  El CLI de Firebase es dependencia de desarrollo: `npx firebase login` (una vez por equipo) y
+  `npx firebase …`. No hace falta `npm i -g`.
+- Si `npm ci` falla con `EACCES` en `~/.npm`, hay ficheros de `root` en la caché:
+  `sudo chown -R $(whoami) ~/.npm`.
+- En local, los emuladores empiezan vacíos: el administrador es `admin@example.com` (en la ventana
+  de Google del emulador, «Add new account»), no la cuenta real.
 - Para probar en navegador se usa Playwright con el Chrome instalado
   (`chromium.launch({ channel: 'chrome' })`) contra `npm run dev`. Chromium headless siempre dice
   que tiene el foco, así que para simular una salida se sobrescribe `document.hasFocus` desde el test.
@@ -94,7 +98,7 @@ Equivalencias con el protocolo actual:
 ### Fase 1 — Proyecto Firebase y reglas de seguridad (hecha)
 
 Entorno local: `firebase-tools` es dependencia de desarrollo (`npx firebase …`); Java de Homebrew
-en `/opt/homebrew/opt/openjdk/bin` (en el `PATH` vía `~/.zshrc`). Node 24 LTS.
+en `/opt/homebrew/opt/openjdk@21/bin` (en el `PATH` vía `~/.zshrc`). Node 24 LTS.
 
 - [x] Proyecto `exam-monitor-jfc` y app web creados con el CLI.
 - [x] `firebase.json`, `.firebaserc`, `database.rules.json` y `public/firebase-config.js` (la config
@@ -113,7 +117,7 @@ en `/opt/homebrew/opt/openjdk/bin` (en el `PATH` vía `~/.zshrc`). Node 24 LTS.
 **Hecho cuando**: los tests de reglas pasan y cubren cada regla de la sección "Reglas" de
 CLAUDE.md.
 
-### Fase 2 — Migrar el frontend y publicar en Pages (hecha salvo la prueba con dos navegadores reales en Pages)
+### Fase 2 — Migrar el frontend y publicar en Pages (hecha; prueba real en Pages el 29/09/2026)
 
 Verificado en local con Chrome (Playwright + emuladores): crear, unirse, iniciar, entrar con
 fProperties en iframe, salir y volver (aviso + incidencia en el panel), cambio de idioma, CSV,
@@ -175,8 +179,15 @@ CSV) funciona en la URL de Pages con dos navegadores reales.
       tolerancia); diálogo al salir de pantalla completa con botón para volver. Pedido tras la
       primera prueba real (29/09/2026).
 
-- [ ] **Fin automático** al agotarse el tiempo: el alumno deja de supervisar en local al llegar a
-      `startedAt + duración`; el panel del profesor marca el examen como `finished`.
+- [x] **Fin automático** al agotarse el tiempo, con 2 min de cortesía: el alumno deja de supervisar, el
+      panel finaliza el examen y las reglas rechazan eventos fuera de plazo. El profesor puede cambiar la
+      duración hasta finalizar (v0.5.0).
+- [x] Número de orden de cada alumno, visible para él, en el panel y en el CSV (v0.5.0).
+- [x] Panel: desplegable «Mostrar» (todos, requieren atención, fuera ahora, con incidencias, sin conexión,
+      sin entrar, en el examen, han terminado) en lugar de «Solo con incidencias», pensado para proyectarlo;
+      el registro de incidencias pasa abajo, plegable (v0.5.0).
+- [x] Barra del alumno rediseñada: roja, icono y herramientas a la izquierda; nº, nombre, «Terminar» y
+      reloj a la derecha (v0.5.0).
 - [ ] **Iframe bloqueado**: si una herramienta no carga (tiempo de espera o `X-Frame-Options`),
       mostrar al alumno qué pasa y ofrecer abrirla en ventana. Útil para URLs que no sean las tuyas.
 - [ ] Recarga durante el examen: volver directamente a la vista de examen (hoy hay que pulsar
@@ -200,8 +211,8 @@ CSV) funciona en la URL de Pages con dos navegadores reales.
 
 - [ ] Texto informativo RGPD en la pantalla de unión y en el README, revisado con el DPD de la US.
       Firebase (Google) actúa como encargado del tratamiento, datos en la UE.
-- [ ] Borrado de datos: botón "Borrar examen" en el panel y borrado automático de exámenes de más
-      de N días al abrir el panel (no hay tareas programadas en el plan Spark).
+- [x] Borrado de datos: botón "Borrar examen" en el panel.
+- [ ] Borrado automático de exámenes de más de N días al abrir el panel (sin Cloud Functions).
 - [ ] Guía de despliegue para otro profesor o centro (crear su propio proyecto Firebase y pegar la
       config).
 - [ ] Etiqueta `v1.0.0` y release en GitHub.

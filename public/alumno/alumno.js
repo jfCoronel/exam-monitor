@@ -1,4 +1,4 @@
-import { $, esc, uid, fmtClock, fmtDur, fmtTime, mountFooter } from '../common.js';
+import { $, esc, uid, fmtClock, fmtDur, fmtTime, mountFooter, GRACE_MS, examEndsAt, examClosesAt, studentLabel } from '../common.js';
 import { t, mountLangSwitch } from '../i18n/index.js';
 import { createBackend } from '../backend.js';
 
@@ -9,7 +9,7 @@ const POLL_MS = 500;
 const be = createBackend();
 
 // ---------- Estado ----------
-let session = readJSON(SESSION_KEY); // { examId, name }
+let session = readJSON(SESSION_KEY); // { examId, name, num }
 let exam = null;
 let stopMeta = null;
 let presence = null;
@@ -25,6 +25,9 @@ const queueKey = () => `examMonitor.cola.${session?.examId}`;
 const submitKey = () => `examMonitor.entregado.${session?.examId}`;
 const saveQueue = () => { if (session) localStorage.setItem(queueKey(), JSON.stringify(queue)); };
 const serverNow = () => Date.now() + clockOffset;
+/** Se agotaron el tiempo y la cortesía: el examen está cerrado para este alumno aunque nadie lo haya finalizado. */
+const timeOver = () => exam?.status === 'active' && serverNow() >= examClosesAt(exam);
+const examOpen = () => exam?.status === 'active' && !submittedAt && !timeOver();
 
 // ---------- Vistas ----------
 const views = ['loading', 'join', 'wait', 'exam', 'done'];
@@ -34,11 +37,13 @@ function show(name) {
 
 function render() {
   if (!session || !exam) return show(session ? 'loading' : 'join');
-  if (submittedAt || exam.status === 'finished') { stopMonitoring(); renderDone(); return show('done'); }
-  if (exam.status === 'active' && entered) { renderExamBar(); return show('exam'); }
+  if (submittedAt || exam.status === 'finished' || timeOver()) { stopMonitoring(); renderDone(); return show('done'); }
+  if (exam.status === 'active' && entered) { renderExamBar(); startMonitoring(); return show('exam'); }
 
   show('wait');
   $('#wait-hello').textContent = t('wait.hello', { name: session.name });
+  $('#wait-num-box').hidden = !session.num;
+  $('#wait-num').innerHTML = [...String(session.num ?? '')].map((d) => `<span>${d}</span>`).join('');
   $('#wait-exam-name').textContent = exam.name;
   $('#wait-waiting').hidden = exam.status !== 'waiting';
   $('#wait-ready').hidden = exam.status !== 'active';
@@ -55,12 +60,13 @@ function render() {
 
 function renderDone() {
   $('#done-title').textContent = t(submittedAt ? 'done.submittedTitle' : 'done.title');
+  $('#done-num').hidden = !session.num;
+  $('#done-num').textContent = t('done.num', { num: session.num });
   $('#done-text').textContent = submittedAt ? t('done.submittedText', { time: fmtTime(submittedAt) }) : t('done.text');
 }
 
 function renderExamBar() {
-  $('#bar-exam').textContent = exam.name;
-  $('#bar-student').textContent = session.name;
+  $('#bar-student').textContent = studentLabel(session);
 }
 
 // ---------- Unirse ----------
@@ -81,7 +87,7 @@ $('#join-form').addEventListener('submit', async (e) => {
   try {
     const r = await be.joinExam(code, name);
     localStorage.setItem(NAME_KEY, name);
-    session = { examId: r.examId, name: r.name };
+    session = { examId: r.examId, name: r.name, num: r.num };
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     history.replaceState(null, '', location.pathname);
     startSession();
@@ -100,7 +106,7 @@ function startSession() {
     if (!m) return resetSession(); // el profesor ha borrado el examen
     const wasActive = exam?.status === 'active';
     exam = m;
-    presence.setActive(exam.status === 'active' && !submittedAt);
+    presence.setActive(examOpen());
     if (exam.status === 'active' && !wasActive && entered) buildToolArea();
     render();
   }, (err) => { if (err.code === 'permission') resetSession(); });
@@ -119,6 +125,7 @@ be.onConnected((online) => {
   pill.className = `pill ${online ? 'ok' : 'warn'}`;
   pill.title = online ? '' : t('conn.offlineHint');
   pill.dataset.online = String(online);
+  pill.hidden = online; // en la barra solo se avisa cuando no hay conexión
 });
 
 function sendEvent(type, extra = {}) {
@@ -241,7 +248,7 @@ function buildToolArea() {
 // así que usar la herramienta incrustada NO cuenta como salir. Los eventos blur/visibilitychange
 // solo adelantan la comprobación para que sea inmediata.
 let pollTimer = null;
-const monitoring = () => entered && !submittedAt && exam?.status === 'active';
+const monitoring = () => entered && examOpen();
 
 function startMonitoring() {
   if (pollTimer) return;
@@ -366,13 +373,29 @@ window.addEventListener('pagehide', () => {
   if (url) navigator.sendBeacon(url, new Blob([be.restEventBody({ type: 'page_leave', clientTs: serverNow() })], { type: 'text/plain' }));
 });
 
-// ---------- Reloj ----------
+// ---------- Reloj y fin automático ----------
+// Al agotarse el tiempo empieza la cortesía (se avisa una vez); al terminar esta, deja de supervisar.
+// El profesor puede cambiar la duración en cualquier momento: todo se recalcula con cada tic.
+let timeUpNotified = false;
+let wasOver = false;
 setInterval(() => {
   if (!exam?.startedAt || exam.status !== 'active') return;
-  const left = exam.startedAt + exam.durationMin * 60_000 - serverNow();
+  const now = serverNow();
+  const left = examEndsAt(exam) - now;
   const el = $('#bar-clock');
-  el.textContent = left > 0 ? fmtClock(left) : t('exam.timeUp');
+  el.textContent = left > 0 ? fmtClock(left) : t('exam.grace', { time: fmtClock(examClosesAt(exam) - now) });
   el.classList.toggle('low', left < 5 * 60_000);
+  if (left > 0) timeUpNotified = false;
+  else if (!timeUpNotified && monitoring()) {
+    timeUpNotified = true;
+    showToast(t('exam.timeUpToast', { dur: fmtDur(GRACE_MS) }));
+  }
+  const over = timeOver();
+  if (over === wasOver) return;
+  wasOver = over;
+  presence?.setActive(examOpen());
+  render(); // detiene la supervisión antes de salir de pantalla completa
+  if (over && document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }, 250);
 
 $('#btn-leave').addEventListener('click', resetSession);
@@ -404,6 +427,10 @@ function buildToolAreaTextsOnly() {
   const user = await be.ready();
   const me = user && await be.getMyStudent(session.examId).catch(() => 'offline');
   if (!me) { resetSession(); return; }
+  if (me !== 'offline' && me.num !== session.num) {
+    session = { ...session, num: me.num };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  }
   submittedAt = Number(localStorage.getItem(submitKey())) || await be.getMySubmission(session.examId);
   startSession();
 })();

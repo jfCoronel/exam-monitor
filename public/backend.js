@@ -204,6 +204,10 @@ export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
     startExam: (examId) => update(ref(db, `exams/${examId}/meta`), { status: 'active', startedAt: serverTimestamp() })
       .catch((err) => { throw wrap(err); }),
 
+    /** Cambia la duración (minutos desde el inicio). Se puede hacer en cualquier momento antes de finalizar. */
+    setDuration: (examId, durationMin) => update(ref(db, `exams/${examId}/meta`), { durationMin })
+      .catch((err) => { throw wrap(err); }),
+
     finishExam: (examId, code) => update(ref(db), {
       [`exams/${examId}/meta/status`]: 'finished',
       [`exams/${examId}/meta/endedAt`]: serverTimestamp(),
@@ -228,15 +232,31 @@ export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
       } catch (err) { throw wrap(err); }
       if (!examId) throw new BackendError('code_not_found');
 
-      const mineRef = ref(db, `exams/${examId}/students/${u.uid}`);
-      const mine = await get(mineRef).catch(() => null);
-      if (mine?.exists()) return { examId, name: mine.val().name }; // ya estaba unido desde este navegador
-      try {
-        await set(mineRef, { name, code, joinedAt: serverTimestamp() });
-      } catch (err) {
-        throw isDenied(err) ? new BackendError('exam_closed', err) : wrap(err);
+      const mine = await get(ref(db, `exams/${examId}/students/${u.uid}`)).catch(() => null);
+      if (mine?.exists()) return { examId, name: mine.val().name, num: mine.val().num }; // ya estaba unido desde este navegador
+
+      // Número de orden: el siguiente a lastNum, escrito junto con la ficha. Las reglas exigen que sea
+      // exactamente lastNum + 1, así que si otro alumno se ha unido a la vez, se rechaza y se reintenta.
+      const lastRef = ref(db, `exams/${examId}/lastNum`);
+      for (let attempt = 0; attempt < 20; attempt++) {
+        let last;
+        try { last = (await get(lastRef)).val() || 0; } catch (err) { throw wrap(err); }
+        const num = last + 1;
+        try {
+          await update(ref(db, `exams/${examId}`), {
+            lastNum: num,
+            [`students/${u.uid}`]: { name, code, num, joinedAt: serverTimestamp() },
+          });
+          return { examId, name, num };
+        } catch (err) {
+          if (!isDenied(err)) throw wrap(err);
+          // Si el contador no ha cambiado, el rechazo no es por coincidir con otro alumno: el examen está cerrado.
+          const now = (await get(lastRef).catch(() => null))?.val() || 0;
+          if (now === last) throw new BackendError('exam_closed', err);
+          await new Promise((r) => setTimeout(r, 30 + Math.random() * 150));
+        }
       }
-      return { examId, name };
+      throw new BackendError('network');
     },
 
     /** Ficha del alumno en ese examen, o null si no se unió (o el examen ya no existe). */

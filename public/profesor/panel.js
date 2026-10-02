@@ -1,4 +1,5 @@
-import { $, esc, fmtClock, fmtDur, fmtTime, eventTime, isInfraction, isNotable, eventText, reasonText, mountFooter } from '../common.js';
+import { $, esc, fmtClock, fmtDur, fmtTime, fmtHM, eventTime, isInfraction, isNotable, eventText, reasonText, mountFooter,
+  GRACE_MS, examEndsAt, examClosesAt, studentLabel } from '../common.js';
 import { t, getLang, locale, mountLangSwitch } from '../i18n/index.js';
 import { createBackend } from '../backend.js';
 
@@ -10,7 +11,7 @@ let exam = null;
 let clockOffset = 0;
 let selectedId = null;
 let stopWatch = null;
-/** id -> { id, name, joinedAt, online, entered, away: {since, reason}|null, events: [] (orden cronológico) } */
+/** id -> { id, name, num, joinedAt, online, entered, away: {since, reason}|null, events: [] (orden cronológico) } */
 const students = new Map();
 
 function showState(state) {
@@ -93,6 +94,7 @@ function renderHeader() {
   $('#p-status').className = `pill ${st[1]}`;
   $('#p-meta').textContent = [
     t('panel.metaDuration', { min: exam.durationMin }),
+    exam.status === 'active' ? t('panel.metaEnds', { time: fmtHM(examEndsAt(exam)), grace: fmtDur(GRACE_MS) }) : null,
     t('panel.metaTools', { count: exam.tools.length }),
     t(exam.mode === 'pestana' ? 'panel.metaTab' : 'panel.metaWindow'),
     exam.toleranceMs ? t('panel.metaTolerance', { dur: fmtDur(exam.toleranceMs) }) : null,
@@ -100,6 +102,7 @@ function renderHeader() {
 
   $('#btn-start').hidden = exam.status !== 'waiting';
   $('#btn-end').hidden = exam.status !== 'active';
+  $('#btn-duration').hidden = exam.status === 'finished';
   $('#p-clock').hidden = exam.status !== 'active';
   $('#btn-project').hidden = exam.status === 'finished';
   document.querySelector('.join-strip').hidden = exam.status === 'finished';
@@ -127,6 +130,13 @@ $('#btn-start').addEventListener('click', () => run(() => be.startExam(exam.id))
 $('#btn-end').addEventListener('click', () => {
   if (confirm(t('panel.confirmEnd'))) run(() => be.finishExam(exam.id, exam.code));
 });
+$('#btn-duration').addEventListener('click', () => {
+  const answer = prompt(t('panel.durationPrompt', { min: exam.durationMin }), String(exam.durationMin));
+  if (answer == null) return;
+  const min = Number(answer.trim());
+  if (!Number.isInteger(min) || min < 1 || min > 600) { alert(t('err.duration_range')); return; }
+  if (min !== exam.durationMin) run(() => be.setDuration(exam.id, min));
+});
 $('#btn-delete').addEventListener('click', () => {
   if (!confirm(t('panel.confirmDelete'))) return;
   run(async () => {
@@ -149,13 +159,14 @@ $('#btn-csv').addEventListener('click', () => {
   const sep = getLang() === 'es' ? ';' : ','; // Excel en español espera ';'
   const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const fmt = (ms) => new Date(ms).toLocaleString(locale());
-  const rows = [[t('csv.student'), t('csv.event'), t('csv.type'), t('csv.time'), t('csv.duration'), t('csv.reason'), t('csv.infraction')]];
+  const rows = [[t('csv.num'), t('csv.student'), t('csv.event'), t('csv.type'), t('csv.time'), t('csv.duration'), t('csv.reason'), t('csv.infraction')]];
   const all = [...students.values()].flatMap((s) => s.events.map((e) => ({ s, e })))
     .sort((a, b) => eventTime(a.e) - eventTime(b.e));
   for (const { s, e } of all) {
     rows.push([s.name, eventText(e), e.type, fmt(eventTime(e)),
       e.durationMs != null ? (e.durationMs / 1000).toFixed(1) : '',
       e.type.startsWith('away') ? reasonText(e.reason) : '', isInfraction(e, exam) ? t('csv.yes') : '']);
+    rows[rows.length - 1].unshift(s.num ?? '');
   }
   const csv = '﻿' + rows.map((r) => r.map(cell).join(sep)).join('\r\n');
   const a = document.createElement('a');
@@ -186,31 +197,60 @@ function summarize(s) {
   return { infractions, awayMs, cls, label, pill };
 }
 
+// ---------- Qué tarjetas se muestran ----------
+// El panel se puede proyectar: el desplegable elige qué grupo ve la clase. Cada filtro recibe { s, sum }.
+const FILTERS = {
+  all: () => true,
+  // Lo que pide que el profesor se acerque: fuera, sin conexión, sin entrar o con alguna incidencia.
+  attention: (x) => !x.s.submittedAt && (FILTERS.away(x) || FILTERS.offline(x) || FILTERS.notEntered(x) || FILTERS.flagged(x)),
+  away: ({ s }) => !s.submittedAt && !!s.away,
+  // También quien está fuera ahora más de la tolerancia, aunque la incidencia no se registra hasta que vuelve.
+  flagged: ({ sum }) => sum.infractions > 0 || sum.cls === 'st-away',
+  offline: ({ s }) => !s.submittedAt && !s.online && exam?.status !== 'finished',
+  notEntered: ({ s }) => exam?.status === 'active' && !s.submittedAt && !s.entered,
+  in: ({ s }) => !s.submittedAt && s.entered && s.online && !s.away,
+  done: ({ s }) => !!s.submittedAt,
+};
+const FILTER_KEY = 'examMonitor.panelFiltro';
+const LOG_KEY = 'examMonitor.panelRegistro';
+const store = {
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* sin almacenamiento: no se recuerda */ } },
+};
+if (FILTERS[store.get(FILTER_KEY)]) $('#filter').value = store.get(FILTER_KEY);
+$('#log-box').open = store.get(LOG_KEY) === 'open';
+
 // ---------- Render ----------
 function renderAll() {
   if (!exam) return;
-  const onlyFlagged = $('#only-flagged').checked;
   const list = [...students.values()].map((s) => ({ s, sum: summarize(s) }));
+  const count = (f) => list.filter(FILTERS[f]).length;
 
   $('#c-joined').textContent = list.length;
-  const working = list.filter(({ s }) => !s.submittedAt);
-  $('#c-in').textContent = working.filter(({ s }) => s.entered && s.online && !s.away).length;
-  $('#c-away').textContent = working.filter(({ s }) => s.away).length;
-  $('#c-off').textContent = working.filter(({ s }) => !s.online).length;
-  $('#c-done').textContent = list.length - working.length;
-  $('#c-flag').textContent = list.filter(({ sum }) => sum.infractions).length;
+  $('#c-in').textContent = count('in');
+  $('#c-away').textContent = count('away');
+  $('#c-off').textContent = count('offline');
+  $('#c-done').textContent = count('done');
+  $('#c-flag').textContent = count('flagged');
+  for (const opt of $('#filter').options) {
+    const text = t('common.withCount', { label: t(`panel.f.${opt.value}`), count: count(opt.value) });
+    if (opt.textContent !== text) opt.textContent = text; // solo si cambia: no molestar con el desplegable abierto
+  }
 
   // Orden: fuera ahora, sin conexión, en el examen y, al final, quien ya ha terminado;
-  // dentro de cada grupo, por nº de incidencias y luego por nombre.
+  // dentro de cada grupo, por nº de incidencias y luego por número de orden (o nombre si no lo hay).
   const rank = ({ s }) => (s.submittedAt ? 3 : s.away ? 0 : !s.online ? 1 : 2);
   list.sort((a, b) => rank(a) - rank(b) || b.sum.infractions - a.sum.infractions ||
-    a.s.name.localeCompare(b.s.name, locale(), { sensitivity: 'base' }));
+    (a.s.num ?? Infinity) - (b.s.num ?? Infinity) || a.s.name.localeCompare(b.s.name, locale(), { sensitivity: 'base' }));
 
-  const shown = onlyFlagged ? list.filter(({ sum }) => sum.infractions) : list;
+  const filter = $('#filter').value;
+  const shown = list.filter(FILTERS[filter]);
   $('#grid-empty').hidden = list.length > 0;
+  $('#grid-none').hidden = !list.length || shown.length > 0;
+  $('#grid-none').textContent = t('panel.noneInFilter', { filter: t(`panel.f.${filter}`) });
   $('#grid').innerHTML = shown.map(({ s, sum }) => `
     <button class="card ${sum.cls}" data-id="${esc(s.id)}" aria-pressed="${s.id === selectedId}">
-      <span class="c-name">${esc(s.name)}</span>
+      <span class="c-name">${s.num ? `<span class="c-num">${s.num}</span>` : ''}${esc(s.name)}</span>
       <span class="c-line"><span class="pill ${sum.pill}">${esc(sum.label)}</span>
         ${sum.infractions ? `<span class="flags">${esc(t('panel.infractionsShort', { count: sum.infractions }))}</span>` : ''}</span>
       ${sum.awayMs ? `<span class="c-line"><span>${esc(t('panel.awayTotal'))}</span><span>${fmtDur(sum.awayMs)}</span></span>` : ''}
@@ -218,9 +258,10 @@ function renderAll() {
 
   const items = feed();
   $('#feed-empty').hidden = items.length > 0;
+  $('#log-title').textContent = t('common.withCount', { label: t('panel.feed'), count: items.length });
   $('#feed').innerHTML = items.map((e) => `
     <li><time>${fmtTime(eventTime(e))}</time>
-      <span><button data-id="${esc(e.studentId)}">${esc(students.get(e.studentId)?.name || '?')}</button>
+      <span><button data-id="${esc(e.studentId)}">${esc(students.has(e.studentId) ? studentLabel(students.get(e.studentId)) : '?')}</button>
       <span class="${isInfraction(e, exam) ? 'inf' : 'soft'}">${esc(eventText(e))}</span></span></li>`).join('');
 
   renderStudent();
@@ -232,7 +273,7 @@ function renderStudent() {
   $('#side-feed').hidden = !!s;
   if (!s) return;
   const sum = summarize(s);
-  $('#s-name').textContent = s.name;
+  $('#log-title').textContent = t('panel.studentLog', { name: studentLabel(s) });
   $('#s-summary').textContent = t('panel.studentSummary', {
     time: fmtTime(s.joinedAt), count: sum.infractions, dur: fmtDur(sum.awayMs), state: sum.label.toLowerCase(),
   });
@@ -242,21 +283,37 @@ function renderStudent() {
     || `<li><span></span><span class="muted">${esc(t('panel.noEvents'))}</span></li>`;
 }
 
+// Pulsar una tarjeta (o un nombre del registro) abre abajo el registro de ese alumno; otra vez, lo cierra.
 document.addEventListener('click', (e) => {
   const target = e.target.closest('[data-id]');
   if (!target) return;
   selectedId = target.dataset.id === selectedId ? null : target.dataset.id;
   renderAll();
+  if (selectedId) {
+    $('#log-box').open = true;
+    $('#log-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 });
 $('#s-close').addEventListener('click', () => { selectedId = null; renderAll(); });
-$('#only-flagged').addEventListener('change', renderAll);
+$('#filter').addEventListener('change', () => { store.set(FILTER_KEY, $('#filter').value); renderAll(); });
+$('#log-box').addEventListener('toggle', () => store.set(LOG_KEY, $('#log-box').open ? 'open' : 'closed'));
 
-// Reloj y contadores de "fuera ahora" en vivo.
+// Reloj, fin automático y contadores de "fuera ahora" en vivo. Agotado el tiempo empieza la cortesía;
+// al terminar, el panel finaliza el examen (sin servidor propio, alguien tiene que hacerlo: el panel abierto,
+// o el primero que se abra después). La duración puede cambiar en cualquier momento: se recalcula con cada tic.
+let finishing = false;
 setInterval(() => {
   if (!exam) return;
   if (exam.status === 'active' && exam.startedAt) {
-    const left = exam.startedAt + exam.durationMin * 60_000 - (Date.now() + clockOffset);
-    $('#p-clock').textContent = left > 0 ? fmtClock(left) : t('panel.timeUp');
+    const now = Date.now() + clockOffset;
+    const left = examEndsAt(exam) - now, closeIn = examClosesAt(exam) - now;
+    const clock = $('#p-clock');
+    clock.textContent = left > 0 ? fmtClock(left) : closeIn > 0 ? t('panel.grace', { time: fmtClock(closeIn) }) : t('panel.timeUp');
+    clock.classList.toggle('grace', left <= 0);
+    if (closeIn <= 0 && !finishing) {
+      finishing = true;
+      be.finishExam(exam.id, exam.code).catch(() => { finishing = false; }); // se reintenta en el siguiente tic
+    }
   }
   if ([...students.values()].some((s) => s.away)) renderAll();
 }, 1000);

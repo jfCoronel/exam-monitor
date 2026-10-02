@@ -53,6 +53,10 @@
     <div class="sheet stack">
       <p class="muted" id="wait-hello"></p>
       <h1 id="wait-exam-name"></h1>
+      <div id="wait-num-box" class="student-num" hidden>
+        <span class="muted small" data-i18n="wait.num">Tu número en el examen</span>
+        <div class="code-boxes" id="wait-num"></div>
+      </div>
       <div id="wait-waiting">
         <p><span class="pill pen pulse" data-i18n="wait.waiting">Esperando a que el profesor empiece el examen</span></p>
       </div>
@@ -75,11 +79,12 @@
   <!-- 3. Examen en curso -->
   <div id="view-exam" hidden>
     <header class="exam-bar">
-      <div class="exam-bar-name"><img class="bar-icon" src="../icons/icon.svg" alt=""><strong id="bar-exam"></strong> <span class="muted small" id="bar-student"></span></div>
+      <img class="bar-icon" src="../icons/icon.svg" data-i18n-attr="alt:app.name" alt="Exam Monitor">
       <nav class="tool-tabs" id="tool-tabs" data-i18n-attr="aria-label:exam.toolsNav"></nav>
-      <div class="row">
+      <div class="bar-right">
+        <strong class="bar-student" id="bar-student"></strong>
         <button class="bar-submit" id="btn-submit" data-i18n="exam.submit">Terminar examen</button>
-        <span class="pill" id="bar-conn"></span>
+        <span class="pill" id="bar-conn" hidden></span>
         <span class="clock" id="bar-clock" data-i18n-attr="aria-label:exam.timeLeft">--:--</span>
       </div>
     </header>
@@ -94,6 +99,7 @@
     <div class="sheet stack">
       <h1 id="done-title"></h1>
       <p id="done-text"></p>
+      <p class="muted" id="done-num" hidden></p>
       <button id="btn-leave" data-i18n="done.leave">Salir</button>
     </div>
   </main>

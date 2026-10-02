@@ -24,8 +24,8 @@
 .counters .c-ok strong { color: var(--ok); }
 @media (max-width: 700px) { .counters { grid-template-columns: repeat(3, 1fr); } }
 
-.panel-body { display: grid; grid-template-columns: 1fr 360px; gap: 24px; align-items: start; }
-@media (max-width: 980px) { .panel-body { grid-template-columns: 1fr; } }
+.filter { display: flex; align-items: center; gap: 8px; font-weight: 400; margin: 0; }
+.filter select { width: auto; min-width: 16rem; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 8px; }
 .card {
@@ -48,9 +48,13 @@
 .card.st-done { border-left-color: var(--ok); opacity: .8; }
 .card .flags { font-weight: 700; color: var(--bad); }
 
-.side { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; padding: 20px; }
-.log { list-style: none; padding: 0; margin: 0; font-size: .875rem; }
-.log li { padding: 8px 0; border-bottom: 1px solid var(--grid); display: grid; grid-template-columns: 8ch 1fr; gap: 8px; }
+/* Registro de incidencias: abajo, discreto y plegable */
+.log-box { margin-top: 28px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--sheet); padding: 10px 16px; }
+.log-box summary { font-size: .9375rem; }
+.log-box[open] summary { margin-bottom: 8px; }
+.log-box .log { max-height: 40vh; overflow: auto; }
+.log { list-style: none; padding: 0; margin: 0; font-size: .8125rem; }
+.log li { padding: 5px 0; border-bottom: 1px solid var(--grid); display: grid; grid-template-columns: 8ch 1fr; gap: 8px; }
 .log time { color: var(--muted); }
 .log .inf { color: var(--bad); font-weight: 700; }
 .log .soft { color: var(--warn); }
@@ -66,3 +70,7 @@
 }
 .projector p { font-size: clamp(1.25rem, 3vw, 2.25rem); max-width: none; margin: 0; }
 .projector #pr-close { position: absolute; top: 16px; right: 16px; }
+
+/* Número de orden en la tarjeta del alumno */
+.card .c-num { display: inline-block; min-width: 2ch; margin-right: 6px; padding: 0 4px; border: 1.5px solid var(--ink); border-radius: 3px; color: var(--pen); text-align: center; font-size: .875rem; }
+.clock-t.grace { color: var(--warn); }

@@ -1,20 +1,23 @@
+/* Barra del examen: color llamativo para que el profesor vea de un vistazo quién está en la página del examen */
+:root { --exam-bar: #a3161a; --exam-bar-dark: #7c0f12; }
+
 #view-exam { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--sheet); }
 
 .exam-bar {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  padding: 8px 16px;
-  background: var(--ink); color: #fff;
+  padding: 6px 16px;
+  background: var(--exam-bar); color: #fff;
 }
-.exam-bar .muted { color: #b8c4d4; }
-.bar-icon { width: 24px; height: 24px; vertical-align: -6px; margin-right: 6px; }
-.exam-bar-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.clock { font-size: 1.5rem; font-weight: 700; min-width: 5ch; text-align: right; }
-.clock.low { color: #ffcf7a; }
+.bar-icon { width: 28px; height: 28px; flex: none; }
+.bar-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.bar-student { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 28ch; }
+.clock { font-size: 1.125rem; font-weight: 700; min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
+.clock.low { color: #ffd98a; }
 
 .tool-tabs { display: flex; gap: 4px; flex: 1; min-width: 0; overflow-x: auto; }
-.tool-tabs button { background: transparent; color: #fff; border-color: #3b4f6b; padding: 6px 14px; white-space: nowrap; }
-.tool-tabs button:hover { background: #22375a; }
-.tool-tabs button[aria-selected="true"] { background: #fff; color: var(--ink); border-color: #fff; }
+.tool-tabs button { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .45); padding: 6px 14px; white-space: nowrap; }
+.tool-tabs button:hover { background: var(--exam-bar-dark); }
+.tool-tabs button[aria-selected="true"] { background: #fff; color: var(--exam-bar); border-color: #fff; }
 
 .tool-area { position: relative; flex: 1; min-height: 0; }
 .tool-area iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
@@ -51,5 +54,9 @@
   border-radius: var(--r-md); padding: 12px 18px; font-weight: 700;
   box-shadow: 0 6px 24px rgba(20, 35, 58, .18);
 }
-.bar-submit { background: transparent; color: #fff; border-color: #6b7f9c; padding: 6px 14px; }
-.bar-submit:hover { background: #22375a; }
+.bar-submit { background: #fff; color: var(--exam-bar); border-color: #fff; padding: 6px 14px; }
+.bar-submit:hover { background: var(--bad-soft); }
+
+/* Número de orden del alumno, en casillas como el código */
+.student-num { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.student-num .code-boxes { font-size: 2rem; }

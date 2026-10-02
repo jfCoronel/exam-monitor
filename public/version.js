@@ -2,4 +2,4 @@
 /** Persona a la que los profesores piden acceso (se muestra en la pantalla de solicitud). */
 export const ADMIN_CONTACT = 'Juan F. Coronel';
 
-export const VERSION = '0.4.0';
+export const VERSION = '0.5.0';

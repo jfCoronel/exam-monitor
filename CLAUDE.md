@@ -61,7 +61,8 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
 /codes/{code}                      { examId, ownerUid }        solo exámenes no finalizados
 /exams/{examId}/meta               { name, durationMin, mode, tools[], toleranceMs, alertText,
                                      status, code, ownerUid, createdAt, startedAt?, endedAt? }
-/exams/{examId}/students/{uid}     { name, code, joinedAt }
+/exams/{examId}/lastNum            n                           último número de orden asignado
+/exams/{examId}/students/{uid}     { name, code, num, joinedAt }   num = número de orden (1, 2, 3…)
 /exams/{examId}/presence/{uid}     { online, changedAt }       onDisconnect() lo pone a false
 /exams/{examId}/events/{uid}/{clientId}  { type, ts, clientTs?, durationMs?, reason? }
 /exams/{examId}/submitted/{uid}    ts                          el alumno terminó (una sola vez)
@@ -75,7 +76,14 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
 `auth.token.email.toLowerCase().replace('.', ',')`).
 
 - `status`: `waiting → active → finished` (o `waiting → finished`). Nunca vuelve atrás.
-- La configuración del examen es inmutable una vez creado.
+- La configuración del examen es inmutable una vez creado, salvo `durationMin`, que el profesor puede
+  cambiar hasta que el examen esté `finished` («Cambiar duración» en el panel).
+- **Fin automático**: agotada la duración (`startedAt + durationMin`) hay 2 min de cortesía (`GRACE_MS` en
+  common.js; las reglas de eventos usan el mismo `120000`). Al terminar, el alumno deja de supervisar y
+  el panel abierto finaliza el examen; las reglas rechazan eventos y entregas fuera de ese plazo.
+- **Número de orden**: al unirse, el alumno escribe `lastNum = n` y su ficha con `num = n` en una sola
+  actualización; las reglas exigen `n = lastNum anterior + 1`, así que dos alumnos a la vez no pueden
+  coger el mismo número (el segundo reintenta, ver `joinExam`). Se muestra al alumno y en el panel y el CSV.
 - `clientId` es la clave del evento y la regla exige `!data.exists()`: los reenvíos no duplican.
 - `ts` = hora del servidor (`ServerValue.TIMESTAMP`, la regla exige `=== now`); `clientTs` = hora
   real del hecho corregida con `.info/serverTimeOffset` (puede llegar tarde si no había red).
@@ -171,3 +179,5 @@ Hoja de examen cuadriculada: fondo con cuadrícula, tinta azul marino (`--ink`),
 (`--pen`) como acento. Tipografía Atkinson Hyperlegible (legibilidad bajo presión).
 El elemento memorable es el código en casillas, como en una hoja de respuestas.
 Rojo solo para incidencias, ámbar para situaciones dudosas (sin conexión, fuera menos de la tolerancia).
+Excepción: la barra superior del alumno durante el examen es roja (`--exam-bar`), a petición del autor,
+para que destaque; a la izquierda, icono y herramientas; a la derecha, nº y nombre, «Terminar examen» y reloj.
