@@ -17,7 +17,6 @@ let clockOffset = 0;      // hora del servidor - Date.now()
 let entered = false;      // el alumno ha pulsado "Entrar al examen" en esta carga de página
 let submittedAt = null;   // hora a la que el alumno terminó su examen (no se puede deshacer)
 let away = null;          // { since, reason } mientras está fuera
-let lastToolOpen = null;  // modo ventana: { name, at }
 let queue = [];           // eventos pendientes de confirmar por el servidor (sobreviven a recargas)
 
 function readJSON(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
@@ -52,7 +51,7 @@ function render() {
     : `<li class="muted">${esc(t('wait.noTools'))}</li>`;
   const rules = [
     t('rules.keepOpen'),
-    exam.mode === 'pestana' ? t('rules.tabMode') : t('rules.windowMode'),
+    t('rules.tabMode'),
     exam.toleranceMs ? t('rules.awayTolerance', { dur: fmtDur(exam.toleranceMs) }) : t('rules.away'),
   ];
   $('#wait-rules-list').innerHTML = rules.map((r) => `<li>${esc(r)}</li>`).join('');
@@ -200,24 +199,7 @@ function buildToolArea() {
     return;
   }
 
-  if (exam.mode === 'ventana') {
-    area.innerHTML = `<div class="tool-empty"><h2>${esc(t('exam.windowTitle'))}</h2>
-      <p>${esc(t('exam.windowText'))}</p><div class="tool-launchers"></div></div>`;
-    const box = area.querySelector('.tool-launchers');
-    exam.tools.forEach((tool, i) => {
-      const b = document.createElement('button');
-      b.className = 'btn-primary';
-      b.textContent = t('exam.open', { name: tool.name });
-      b.addEventListener('click', () => {
-        lastToolOpen = { name: tool.name, at: Date.now() };
-        window.open(tool.url, `herramienta-${i}`, 'popup,width=1100,height=800');
-      });
-      box.append(b);
-    });
-    return;
-  }
-
-  // Modo pestaña: cada herramienta en un iframe dentro de esta página. Se crean al abrir la pestaña
+  // Cada herramienta en un iframe dentro de esta página. Se crean al abrir la pestaña
   // por primera vez y luego solo se ocultan, para no perder lo que el alumno haya hecho.
   const frames = new Map();
   const select = (i) => {
@@ -273,11 +255,6 @@ function check() {
 }
 
 function startAway(reason) {
-  if (exam.mode === 'ventana' && lastToolOpen && Date.now() - lastToolOpen.at < 3000) {
-    reason = `tool:${lastToolOpen.name}`;
-  } else if (exam.mode === 'ventana' && reason === 'blur') {
-    reason = 'window'; // no se puede saber a qué ventana fue
-  }
   away = { since: Date.now(), reason };
   sendEvent('away_start', { reason });
   setAwayTitle(true);
@@ -327,8 +304,8 @@ function renderNotice() {
   if (wasHidden) $('#btn-alert-ok').focus();
 }
 
-/** En modo pestaña el examen se hace en pantalla completa; en modo ventana no se insiste. */
-const needsFullscreen = () => exam?.mode === 'pestana' && fsSupported() && !document.fullscreenElement;
+/** El examen se hace en pantalla completa. */
+const needsFullscreen = () => !!exam && fsSupported() && !document.fullscreenElement;
 
 function showToast(text) {
   const el = $('#toast');
@@ -348,13 +325,11 @@ window.addEventListener('focus', check);
 
 document.addEventListener('fullscreenchange', () => {
   const out = !document.fullscreenElement;
-  $('#fs-banner').hidden = !(out && monitoring() && exam.mode === 'pestana');
+  $('#fs-banner').hidden = !(out && monitoring());
   if (!out || !monitoring()) return;
   sendEvent('fullscreen_exit');
-  if (exam.mode === 'pestana') {
-    notice = { ...notice, fsExit: true };
-    renderNotice(); // si ha salido con Alt+Tab, lo verá al volver, junto con el tiempo fuera
-  }
+  notice = { ...notice, fsExit: true };
+  renderNotice(); // si ha salido con Alt+Tab, lo verá al volver, junto con el tiempo fuera
 });
 $('#btn-fs').addEventListener('click', goFullscreen);
 
@@ -413,7 +388,7 @@ document.addEventListener('langchange', () => {
 });
 // Durante el examen no se reconstruyen los iframes (se perdería el trabajo): solo los textos.
 function buildToolAreaTextsOnly() {
-  if (exam.mode === 'ventana' || !exam.tools.length) buildToolArea();
+  if (!exam.tools.length) buildToolArea();
 }
 
 // ---------- Arranque ----------

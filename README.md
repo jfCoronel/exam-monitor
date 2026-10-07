@@ -14,7 +14,7 @@ when a student leaves the exam page and shows it live on the teacher's dashboard
 
 1. El profesor entra en `/profesor/` con su cuenta de Google. La primera vez pulsa **Solicitar acceso**
    y espera a que el administrador lo apruebe en `/admin/` (solo una vez). Después crea el examen:
-   nombre, duración, herramientas permitidas y modo.
+   nombre, duración y herramientas permitidas.
 2. Pulsa **Proyectar código**. Los alumnos abren `/alumno/` (o escanean el QR), escriben su nombre y el código.
 3. Cuando están todos en la sala de espera, pulsa **Iniciar examen**.
 4. Cada alumno pulsa **Entrar al examen** (pasa a pantalla completa y empieza la supervisión).

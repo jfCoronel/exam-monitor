@@ -39,7 +39,7 @@ test('todas las claves que usa el código existen', () => {
   for (const e of CLIENT_EVENTS) used.add(`ev.${e}`);
   for (const r of ['blur', 'hidden', 'window', 'tool']) used.add(`reason.${r}`);
   for (const s of ['waiting', 'active', 'finished']) used.add(`status.${s}`);
-  for (const k of ['conn.online', 'conn.offline', 'panel.metaTab', 'panel.metaWindow']) used.add(k);
+  for (const k of ['conn.online', 'conn.offline']) used.add(k);
   const backend = readFileSync(join(PUBLIC, 'backend.js'), 'utf8');
   for (const m of backend.matchAll(/BackendError\('([a-z_]+)'/g)) used.add(`err.${m[1]}`);
   for (const m of backend.matchAll(/'(permission|network)'/g)) used.add(`err.${m[1]}`);

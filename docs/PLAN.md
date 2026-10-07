@@ -188,8 +188,11 @@ CSV) funciona en la URL de Pages con dos navegadores reales.
       el registro de incidencias pasa abajo, plegable (v0.5.0).
 - [x] Barra del alumno rediseñada: roja, icono y herramientas a la izquierda; nº, nombre, «Terminar» y
       reloj a la derecha (v0.5.0).
+- [x] Quitado el modo ventana: cada uso de la herramienta contaba como salida. Solo queda el modo
+      pestaña hasta que exista la extensión de navegador (v0.5.1).
 - [ ] **Iframe bloqueado**: si una herramienta no carga (tiempo de espera o `X-Frame-Options`),
-      mostrar al alumno qué pasa y ofrecer abrirla en ventana. Útil para URLs que no sean las tuyas.
+      mostrar al alumno qué pasa y que esa herramienta no se puede usar en el examen. Útil para URLs
+      que no sean las tuyas.
 - [ ] Recarga durante el examen: volver directamente a la vista de examen (hoy hay que pulsar
       "Entrar" otra vez y hay un hueco sin supervisión).
 - [ ] Alumno que se une dos veces (otro navegador, almacenamiento borrado): avisar en el panel de
@@ -220,7 +223,7 @@ CSV) funciona en la URL de Pages con dos navegadores reales.
 ## Después de la v1.0
 
 - Extensión de navegador (Manifest V3) para que el modo ventana sepa en qué pestaña está el alumno
-  (pendiente nº 3).
+  (pendiente nº 3). Con ella vuelve el modo ventana (`meta.mode = 'ventana'`), quitado en la v0.5.1.
 - Varios profesores supervisando el mismo examen.
 - Firebase App Check para limitar abusos de `/codes` y de la unión a exámenes (pendiente nº 8).
 - Modo oscuro (pendiente nº 9).

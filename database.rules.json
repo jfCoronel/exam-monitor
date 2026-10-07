@@ -104,7 +104,7 @@
             ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 600 && (!data.exists() || data.val() === newData.val() || data.parent().child('status').val() !== 'finished')"
           },
           "mode": {
-            ".validate": "(newData.val() === 'pestana' || newData.val() === 'ventana') && (!data.exists() || data.val() === newData.val())"
+            ".validate": "newData.val() === 'pestana' && (!data.exists() || data.val() === newData.val())"
           },
           "toleranceMs": {
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 60000 && (!data.exists() || data.val() === newData.val())"

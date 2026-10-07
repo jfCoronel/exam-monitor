@@ -81,11 +81,6 @@ textarea { min-height: 72px; resize: vertical; }
 fieldset { border: 0; padding: 0; margin: 0; }
 legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
 
-.choice { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-sm); cursor: pointer; font-weight: 400; }
-.choice + .choice { margin-top: 8px; }
-.choice:has(input:checked) { border-color: var(--pen); background: var(--pen-soft); }
-.choice input { margin-top: 4px; }
-.choice strong { display: block; }
 
 .tool-row { display: grid; grid-template-columns: 1fr 2fr auto; gap: 8px; }
 .tool-row + .tool-row { margin-top: 8px; }

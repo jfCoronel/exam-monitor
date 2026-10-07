@@ -89,8 +89,8 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
   real del hecho corregida con `.info/serverTimeOffset` (puede llegar tarde si no había red).
 - **La incidencia no se guarda**: se calcula al mostrar con `isInfraction()` (common.js): un
   `away_end` con `durationMs >= toleranceMs`, o un `page_leave`.
-- `type` y `reason` son códigos independientes del idioma. `reason`: `hidden`, `blur`, `window`,
-  `tool:<nombre>`. Se traducen al mostrarlos.
+- `type` y `reason` son códigos independientes del idioma. `reason`: `hidden`, `blur` (y, en
+  exámenes antiguos del modo ventana, `window` y `tool:<nombre>`). Se traducen al mostrarlos.
 
 ## Permisos de profesor
 
@@ -130,16 +130,18 @@ página, así que **usar la herramienta incrustada no cuenta como salir**. Esto 
 Chromium; hay que verificarlo en Firefox y Safari.
 
 Al volver, el alumno **siempre** ve cuánto ha estado fuera: aviso breve que se cierra solo si no
-llega a la tolerancia; diálogo rojo si es incidencia. Salir de pantalla completa (modo pestaña)
+llega a la tolerancia; diálogo rojo si es incidencia. Salir de pantalla completa
 abre un diálogo ámbar cuyo botón la vuelve a pedir (necesita el clic del alumno). Si coinciden,
 se muestra un solo diálogo con las dos cosas.
 
-Modos:
-- `pestana` (recomendado): las herramientas se cargan en iframes dentro de la página del examen,
-  con pestañas internas. Cualquier salida es detectable.
-- `ventana`: las herramientas se abren con `window.open`. La página del examen pierde el foco al
-  usarlas y **no hay forma de saber a qué ventana fue el alumno**. Se registra igualmente, con un
-  motivo que lo indica. Es una limitación conocida, no un bug.
+Las herramientas se cargan en iframes dentro de la página del examen, con pestañas internas, y
+el examen se hace en pantalla completa. Cualquier salida es detectable. `meta.mode` vale siempre
+`pestana` (las reglas no aceptan otro valor).
+
+El modo `ventana` (herramientas con `window.open`) se quitó en la v0.5.1: la página del examen pierde
+el foco al usarlas y no hay forma de saber a qué ventana fue el alumno, así que cada uso de la
+herramienta contaba como salida. Volverá con la extensión de navegador (ver PLAN). Los motivos
+`window` y `tool:<nombre>` de exámenes antiguos se siguen traduciendo.
 
 fproperties.jfcoronel.org y psolver.jfcoronel.org se pueden incrustar (sin `X-Frame-Options` ni
 CSP, comprobado el 27/09/2026). Para otras URLs, comprobar con `curl -I <url>`.

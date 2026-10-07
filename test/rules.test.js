@@ -60,6 +60,7 @@ test('crear examen', async (t) => {
   await t.test('un alumno anónimo no puede crear exámenes', () => assertFails(createExam(anon('prof'))));
   await t.test('rechaza URLs de herramienta que no son http(s)', () =>
     assertFails(createExam(google('prof'), { m: { tools: [{ name: 'x', url: 'javascript:alert(1)' }] } })));
+  await t.test('rechaza el modo ventana (retirado)', () => assertFails(createExam(google('prof'), { m: { mode: 'ventana' } })));
   await t.test('rechaza duración fuera de rango', () => assertFails(createExam(google('prof'), { m: { durationMin: 0 } })));
   await t.test('rechaza un examen que no empieza en espera', () => assertFails(createExam(google('prof'), { m: { status: 'active' } })));
   await t.test('no se puede crear a nombre de otro profesor', () =>

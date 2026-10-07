@@ -48,7 +48,8 @@ export const studentLabel = (s) => (s.num ? t('common.studentNum', { num: s.num,
 
 // ---------- Eventos ----------
 // Los datos guardados no dependen del idioma: type y reason son códigos que se traducen al mostrarlos.
-// reason: 'hidden' | 'blur' | 'window' | 'tool:<nombre de la herramienta>'
+// reason: 'hidden' | 'blur'. 'window' y 'tool:<nombre>' solo aparecen en exámenes del antiguo modo
+// ventana (quitado en la v0.5.1); se siguen traduciendo para poder ver esos registros.
 export const CLIENT_EVENTS = ['exam_enter', 'away_start', 'away_end', 'fullscreen_exit', 'page_leave', 'disconnected', 'reconnected', 'exam_submit'];
 
 /** Hora real del hecho: la del cliente (corregida con el offset) si la hay; si no, la del servidor. */

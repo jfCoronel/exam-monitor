@@ -16,7 +16,7 @@ let n = 0;
 const id = () => `c${Date.now()}${n++}`;
 
 const signIn = async (be, sub, email) => be.signInTeacher(be.googleCredential(JSON.stringify({ sub, email, email_verified: true })));
-const EXAM_INPUT = { name: 'Termodinámica', durationMin: 90, mode: 'pestana', toleranceMs: 3000, alertText: 'Registrado.',
+const EXAM_INPUT = { name: 'Termodinámica', durationMin: 90, toleranceMs: 3000, alertText: 'Registrado.',
   tools: [{ name: 'fProperties', url: 'https://fproperties.jfcoronel.org/' }] };
 await seedEmulator({ admins: ['admin@us.es'] });
 
@@ -44,7 +44,7 @@ ok(await waitFor(() => pending.length === 0 && allowed.some((p) => p.email === '
 
 // ---------- Profesor ----------
 
-ok(await rejects(prof.createExam({ name: 'X', durationMin: 60, mode: 'pestana', toleranceMs: 0, alertText: 'a',
+ok(await rejects(prof.createExam({ name: 'X', durationMin: 60, toleranceMs: 0, alertText: 'a',
   tools: [{ name: 'x', url: 'javascript:alert(1)' }] })), 'rechaza URLs no http(s)');
 
 const exam = await prof.createExam(EXAM_INPUT);

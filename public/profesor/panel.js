@@ -96,7 +96,6 @@ function renderHeader() {
     t('panel.metaDuration', { min: exam.durationMin }),
     exam.status === 'active' ? t('panel.metaEnds', { time: fmtHM(examEndsAt(exam)), grace: fmtDur(GRACE_MS) }) : null,
     t('panel.metaTools', { count: exam.tools.length }),
-    t(exam.mode === 'pestana' ? 'panel.metaTab' : 'panel.metaWindow'),
     exam.toleranceMs ? t('panel.metaTolerance', { dur: fmtDur(exam.toleranceMs) }) : null,
   ].filter(Boolean).join(', ');
 

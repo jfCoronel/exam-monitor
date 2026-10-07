@@ -152,13 +152,13 @@ export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
 
     // ---------- Profesor ----------
     /** Crea el examen con un código libre. Las reglas rechazan la escritura entera si el código está en uso. */
-    async createExam({ name, durationMin, mode, tools = [], toleranceMs, alertText }) {
+    async createExam({ name, durationMin, tools = [], toleranceMs, alertText }) {
       const owner = uidOrThrow();
       const examId = push(ref(db, 'exams')).key;
       for (let attempt = 0; attempt < 8; attempt++) {
         const code = randomCode();
         const meta = clean({
-          name, durationMin, mode, toleranceMs, alertText, code,
+          name, durationMin, mode: 'pestana', toleranceMs, alertText, code,
           status: 'waiting', ownerUid: owner, createdAt: serverTimestamp(),
           tools: tools.length ? tools : undefined,
         });

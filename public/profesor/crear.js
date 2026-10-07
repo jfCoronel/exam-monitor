@@ -124,7 +124,6 @@ $('#create-form').addEventListener('submit', async (e) => {
   try {
     const exam = await be.createExam({
       name, durationMin, tools,
-      mode: new FormData(e.target).get('mode'),
       toleranceMs: Number($('#f-tolerance').value) * 1000,
       alertText: alertEl.value.trim().slice(0, 300) || t('create.alertDefault'),
     });
