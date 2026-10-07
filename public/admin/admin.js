@@ -3,6 +3,7 @@
 import { $, esc, fmtDateTime, mountFooter } from '../common.js';
 import { t, mountLangSwitch } from '../i18n/index.js';
 import { createBackend } from '../backend.js';
+import { mountSignIn } from '../signin.js';
 
 const be = createBackend();
 let requests = [];
@@ -38,14 +39,7 @@ be.onUser((user) => {
   });
 });
 
-$('#btn-signin').addEventListener('click', async () => {
-  const errEl = $('#signin-error');
-  errEl.hidden = true;
-  try { await be.signInTeacher(); } catch (err) {
-    errEl.textContent = t(`err.${err.code || 'network'}`);
-    errEl.hidden = false;
-  }
-});
+mountSignIn($('#signin-box'), be);
 $('#btn-signout').addEventListener('click', () => be.signOut());
 
 function render() {

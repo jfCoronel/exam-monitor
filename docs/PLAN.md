@@ -198,6 +198,12 @@ CSV) funciona en la URL de Pages con dos navegadores reales.
 - [ ] fProperties y pSolver avisan por `postMessage` a la página del examen si una extensión les mete
       elementos (desde fuera no se ve dentro de sus iframes).
 - [ ] Probar a mano con extensiones de chat flotante (Sider, Monica, Merlin) en Chrome y Edge.
+- [x] Profesores con correo y contraseña además de Google, con verificación del correo obligatoria y
+      «¿Has olvidado la contraseña?» (v0.6.0). Hay que activar el método en la consola de Firebase.
+- [x] Herramientas favoritas en crear examen: fProperties y pSolver de partida, ☆ para guardar otras,
+      guardadas en la cuenta del profesor (v0.6.0).
+- [ ] Personalizar en la consola de Firebase el remitente y las plantillas de los correos de
+      verificación y de contraseña (hoy salen de noreply@exam-monitor-jfc.firebaseapp.com).
 - [ ] **Iframe bloqueado**: si una herramienta no carga (tiempo de espera o `X-Frame-Options`),
       mostrar al alumno qué pasa y que esa herramienta no se puede usar en el examen. Útil para URLs
       que no sean las tuyas.

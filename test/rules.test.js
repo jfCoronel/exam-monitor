@@ -14,6 +14,12 @@ const key = (email) => email.toLowerCase().replaceAll('.', ',');
 const google = (uid, email = emailOf(uid), verified = true) => env.authenticatedContext(uid, {
   email, email_verified: verified, firebase: { sign_in_provider: 'google.com' },
 }).database();
+const password = (uid, email = emailOf(uid), verified = true) => env.authenticatedContext(uid, {
+  email, email_verified: verified, firebase: { sign_in_provider: 'password' },
+}).database();
+const otherProvider = (uid, email = emailOf(uid)) => env.authenticatedContext(uid, {
+  email, email_verified: true, firebase: { sign_in_provider: 'github.com' },
+}).database();
 const anon = (uid) => env.authenticatedContext(uid, { firebase: { sign_in_provider: 'anonymous' } }).database();
 
 const meta = (overrides = {}) => ({
@@ -72,6 +78,41 @@ test('crear examen', async (t) => {
     assertFails(google('otro').ref(`exams/${EXAM}/meta`).set(meta({ ownerUid: 'otro' }))));
   await t.test('la configuración no se puede cambiar después', () =>
     assertFails(google('prof').ref(`exams/${EXAM}/meta/toleranceMs`).set(60000)));
+});
+
+test('profesor con correo y contraseña', async (t) => {
+  await reset({ allowed: ['prof', 'pw'] });
+  await t.test('con el correo sin verificar no puede crear exámenes aunque esté autorizado', () =>
+    assertFails(createExam(password('pw', emailOf('pw'), false), { owner: 'pw' })));
+  await t.test('con el correo sin verificar no puede solicitar acceso', () =>
+    assertFails(password('pw2', emailOf('pw2'), false).ref('accessRequests/pw2').set({ email: emailOf('pw2'), requestedAt: TS })));
+  await t.test('una cuenta sin verificar con el correo de la administradora no la suplanta', () =>
+    assertFails(password('intruso', emailOf('admin'), false).ref('accessRequests').get()));
+  await t.test('con el correo verificado solicita acceso', () =>
+    assertSucceeds(password('pw2').ref('accessRequests/pw2').set({ email: emailOf('pw2'), requestedAt: TS })));
+  await t.test('con el correo verificado y autorizado crea el examen', () =>
+    assertSucceeds(createExam(password('pw'), { owner: 'pw' })));
+  await t.test('otro proveedor (no Google ni contraseña) no puede crear exámenes', () =>
+    assertFails(createExam(otherProvider('prof'), { examId: 'exam2', code: '654321' })));
+});
+
+test('herramientas favoritas', async (t) => {
+  await reset();
+  const fav = { 0: { name: 'fProperties', url: 'https://fproperties.jfcoronel.org/' } };
+  await t.test('el profesor guarda sus favoritas', () => assertSucceeds(google('prof').ref('teachers/prof/favorites').set(fav)));
+  await t.test('y las lee', () => assertSucceeds(google('prof').ref('teachers/prof/favorites').get()));
+  await t.test('puede dejar la lista vacía (false)', () => assertSucceeds(google('prof').ref('teachers/prof/favorites').set(false)));
+  await t.test('otro profesor no puede leerlas ni escribirlas', async () => {
+    await assertFails(google('otro').ref('teachers/prof/favorites').get());
+    await assertFails(google('otro').ref('teachers/prof/favorites').set(fav));
+  });
+  await t.test('un alumno anónimo no puede', () => assertFails(anon('prof').ref('teachers/prof/favorites').set(fav)));
+  await t.test('con el correo sin verificar no puede', () => assertFails(password('prof', emailOf('prof'), false).ref('teachers/prof/favorites').set(fav)));
+  await t.test('rechaza URLs que no son http(s)', () =>
+    assertFails(google('prof').ref('teachers/prof/favorites').set({ 0: { name: 'x', url: 'javascript:alert(1)' } })));
+  await t.test('rechaza campos de más', () =>
+    assertFails(google('prof').ref('teachers/prof/favorites').set({ 0: { ...fav[0], extra: 1 } })));
+  await t.test('rechaza otros valores sueltos', () => assertFails(google('prof').ref('teachers/prof/favorites').set(true)));
 });
 
 test('unirse y leer', async (t) => {

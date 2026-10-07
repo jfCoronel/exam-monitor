@@ -12,7 +12,8 @@ when a student leaves the exam page and shows it live on the teacher's dashboard
 
 ## Cómo se usa en clase
 
-1. El profesor entra en `/profesor/` con su cuenta de Google. La primera vez pulsa **Solicitar acceso**
+1. El profesor entra en `/profesor/` con su cuenta de Google o con su correo y una contraseña (hay que
+   verificar el correo con el enlace que llega al crear la cuenta). La primera vez pulsa **Solicitar acceso**
    y espera a que el administrador lo apruebe en `/admin/` (solo una vez). Después crea el examen:
    nombre, duración y herramientas permitidas.
 2. Pulsa **Proyectar código**. Los alumnos abren `/alumno/` (o escanean el QR), escriben su nombre y el código.
@@ -25,7 +26,7 @@ when a student leaves the exam page and shows it live on the teacher's dashboard
 ## Arquitectura
 
 - Frontend estático (HTML, CSS y JS sin build) publicado en GitHub Pages.
-- Firebase Realtime Database para el tiempo real y Firebase Auth (Google para profesores,
+- Firebase Realtime Database para el tiempo real y Firebase Auth (Google o correo y contraseña para profesores,
   acceso anónimo para alumnos). Las reglas de seguridad (`database.rules.json`) validan todo lo
   que antes hacía un servidor.
 
@@ -41,7 +42,9 @@ npm run smoke        # prueba de extremo a extremo (profesor + alumnos simulados
 ```
 
 En `npm run dev`, el acceso con Google abre la pantalla del emulador: pulsa *Add new account* y usa
-`admin@example.com` (administrador) o `profesor@example.com` (profesor autorizado).
+`admin@example.com` (administrador) o `profesor@example.com` (profesor autorizado). También se puede
+crear una cuenta con correo y contraseña: el emulador no envía correos; el enlace de verificación
+sale en la terminal.
 
 Publicar: cada push a `main` pasa los tests y despliega `public/` en Pages. Las reglas se publican
 aparte con `npm run deploy:rules` (requiere `npx firebase login`).
@@ -49,7 +52,7 @@ aparte con `npm run deploy:rules` (requiere `npx firebase login`).
 ## Usar tu propio proyecto de Firebase
 
 1. Crea un proyecto en Firebase, una Realtime Database (región UE) y activa en Authentication los
-   métodos **Google** y **Anónimo**. Añade tu dominio en *Authentication → Configuración → Dominios autorizados*.
+   métodos **Google**, **Correo electrónico/contraseña** y **Anónimo**. Añade tu dominio en *Authentication → Configuración → Dominios autorizados*.
 2. Sustituye `firebaseConfig` en `public/firebase-config.js` y el proyecto en `.firebaserc`.
 3. Hazte administrador: `npx firebase database:set "/admins/<tu correo con , en vez de .>" --data true`.
 4. `npm run deploy:rules` y publica `public/` en cualquier hosting estático con HTTPS.

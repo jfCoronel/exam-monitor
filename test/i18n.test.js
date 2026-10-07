@@ -26,7 +26,7 @@ test('mismos plurales y mismos {parámetros} en los dos idiomas', () => {
 test('todas las claves que usa el código existen', () => {
   const used = new Set();
   for (const f of files(PUBLIC, '.js')) {
-    for (const m of readFileSync(f, 'utf8').matchAll(/\bt\(\s*'([a-zA-Z]+\.[a-zA-Z_]+)'/g)) used.add(m[1]);
+    for (const m of readFileSync(f, 'utf8').matchAll(/\b(?:t|say)\(\s*'([a-zA-Z]+\.[a-zA-Z_]+)'/g)) used.add(m[1]);
   }
   for (const f of files(PUBLIC, '.html')) {
     const html = readFileSync(f, 'utf8');
@@ -39,7 +39,7 @@ test('todas las claves que usa el código existen', () => {
   for (const e of CLIENT_EVENTS) used.add(`ev.${e}`);
   for (const r of ['blur', 'hidden', 'extension', 'window', 'tool']) used.add(`reason.${r}`);
   for (const s of ['waiting', 'active', 'finished']) used.add(`status.${s}`);
-  for (const k of ['conn.online', 'conn.offline']) used.add(k);
+  for (const k of ['conn.online', 'conn.offline', 'auth.signIn', 'auth.signUp', 'auth.resetSend', 'auth.forgot', 'auth.toSignup', 'auth.toSignin']) used.add(k);
   const backend = readFileSync(join(PUBLIC, 'backend.js'), 'utf8');
   for (const m of backend.matchAll(/BackendError\('([a-z_]+)'/g)) used.add(`err.${m[1]}`);
   for (const m of backend.matchAll(/'(permission|network)'/g)) used.add(`err.${m[1]}`);

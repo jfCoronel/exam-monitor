@@ -18,7 +18,7 @@ const id = () => `c${Date.now()}${n++}`;
 const signIn = async (be, sub, email) => be.signInTeacher(be.googleCredential(JSON.stringify({ sub, email, email_verified: true })));
 const EXAM_INPUT = { name: 'Termodinámica', durationMin: 90, toleranceMs: 3000, alertText: 'Registrado.',
   tools: [{ name: 'fProperties', url: 'https://fproperties.jfcoronel.org/' }] };
-await seedEmulator({ admins: ['admin@us.es'] });
+await seedEmulator({ admins: ['admin@us.es'], teachers: ['maria.pw@us.es'] });
 
 // ---------- Permisos: solicitar y aprobar ----------
 const prof = createBackend({ emulator: true, name: 'prof' });
@@ -157,6 +157,40 @@ ok(!(await prof.listMyExams()).some((e) => e.id === exam.id), 'desaparece de "mi
 await admin.revokeTeacher('jose.prof@us.es');
 ok(await waitFor(() => access?.approved === false), 'retirado: el profesor lo ve en vivo');
 ok(await rejects(prof.createExam(EXAM_INPUT), 'create_failed'), 'sin permiso ya no crea exámenes');
+
+// ---------- Profesor con correo y contraseña ----------
+const pw = createBackend({ emulator: true, name: 'pw' });
+ok(await rejects(pw.signUpWithPassword('maria.pw@us.es', '1234567'), 'weak_password'), 'contraseña corta: weak_password');
+await pw.signUpWithPassword('maria.pw@us.es', 'contraseña-larga');
+ok(pw.needsVerification() && !pw.isTeacher(), 'cuenta creada: falta verificar el correo');
+ok(await rejects(pw.createExam(EXAM_INPUT), 'create_failed'), 'sin verificar no crea exámenes aunque esté autorizada');
+// El emulador de Auth guarda los correos de verificación: se abre el enlace como haría la profesora.
+const { oobCodes } = await (await fetch('http://127.0.0.1:9099/emulator/v1/projects/demo-foco/oobCodes')).json();
+const link = oobCodes.filter((c) => c.email === 'maria.pw@us.es' && c.requestType === 'VERIFY_EMAIL').at(-1)?.oobLink;
+ok(!!link, 'se ha enviado el correo de verificación');
+await fetch(link);
+let notified = null;
+pw.onUser((u) => { notified = u; });
+await pw.refreshUser();
+ok(pw.isTeacher() && !pw.needsVerification(), 'tras abrir el enlace ya es profesora');
+ok(await waitFor(() => notified?.emailVerified === true), 'refreshUser avisa a las páginas abiertas');
+let favs;
+const stopFavs = pw.watchFavorites((l) => { favs = l; });
+ok(await waitFor(() => favs === null), 'favoritas: sin tocar, null (la interfaz muestra las de por defecto)');
+await pw.setFavorites([{ name: 'pSolver', url: 'https://psolver.jfcoronel.org/' }, { name: 'fProperties', url: 'https://fproperties.jfcoronel.org/' }]);
+ok(await waitFor(() => favs?.length === 2 && favs[0].name === 'pSolver'), 'favoritas: se guardan en orden');
+await pw.setFavorites([]);
+ok(await waitFor(() => Array.isArray(favs) && favs.length === 0), 'favoritas: la lista vacía se queda vacía');
+stopFavs();
+const pwExam = await pw.createExam(EXAM_INPUT);
+ok(!!pwExam.code, 'verificada y autorizada: crea el examen');
+await pw.deleteExam({ id: pwExam.id, code: pwExam.code, status: 'waiting' });
+await pw.signOut();
+ok(await rejects(pw.signInWithPassword('maria.pw@us.es', 'otra-cosa'), 'bad_credentials'), 'contraseña incorrecta: bad_credentials');
+ok(await rejects(pw.signUpWithPassword('maria.pw@us.es', 'contraseña-larga'), 'email_in_use'), 'el correo ya tiene cuenta: email_in_use');
+await pw.signInWithPassword('maria.pw@us.es', 'contraseña-larga');
+ok(pw.isTeacher(), 'vuelve a entrar con su contraseña');
+ok(!(await rejects(pw.resetPassword('nadie@us.es'))), 'restablecer un correo sin cuenta no lo revela');
 
 console.log(failed ? `\n${failed} fallo(s)` : '\nTodo correcto');
 process.exit(failed ? 1 : 0);

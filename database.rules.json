@@ -31,7 +31,7 @@
       ".read": "auth != null && (auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true)",
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && ((auth.uid === $uid && auth.token.firebase.sign_in_provider === 'google.com' && auth.token.email_verified === true) || ((auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true) && !newData.exists()))",
+        ".write": "auth != null && ((auth.uid === $uid && (auth.token.firebase.sign_in_provider === 'google.com' || auth.token.firebase.sign_in_provider === 'password') && auth.token.email_verified === true) || ((auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true) && !newData.exists()))",
         ".validate": "newData.hasChildren(['email', 'requestedAt']) && newData.child('email').val() === auth.token.email",
         "email": {
           ".validate": "newData.isString()"
@@ -50,7 +50,7 @@
     "codes": {
       "$code": {
         ".read": "auth != null",
-        ".write": "auth != null && auth.token.firebase.sign_in_provider === 'google.com' && ((newData.exists() && newData.child('ownerUid').val() === auth.uid && ((auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true) || (auth.token.email_verified === true && root.child('allowedTeachers/' + auth.token.email.toLowerCase().replace('.', ',')).exists())) && (!data.exists() || !root.child('exams/' + data.child('examId').val() + '/meta').exists() || root.child('exams/' + data.child('examId').val() + '/meta/status').val() === 'finished')) || (!newData.exists() && data.child('ownerUid').val() === auth.uid))",
+        ".write": "auth != null && (auth.token.firebase.sign_in_provider === 'google.com' || auth.token.firebase.sign_in_provider === 'password') && ((newData.exists() && newData.child('ownerUid').val() === auth.uid && ((auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true) || (auth.token.email_verified === true && root.child('allowedTeachers/' + auth.token.email.toLowerCase().replace('.', ',')).exists())) && (!data.exists() || !root.child('exams/' + data.child('examId').val() + '/meta').exists() || root.child('exams/' + data.child('examId').val() + '/meta/status').val() === 'finished')) || (!newData.exists() && data.child('ownerUid').val() === auth.uid))",
         ".validate": "$code.matches(/^[0-9]{6}$/) && newData.hasChildren(['examId', 'ownerUid'])",
         "examId": {
           ".validate": "newData.isString() && newData.val().length <= 64"
@@ -81,7 +81,23 @@
             "$other": {
               ".validate": false
             },
-            ".write": "auth != null && auth.uid === $uid && auth.token.firebase.sign_in_provider === 'google.com' && (!newData.exists() || ((auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true) || (auth.token.email_verified === true && root.child('allowedTeachers/' + auth.token.email.toLowerCase().replace('.', ',')).exists())))"
+            ".write": "auth != null && auth.uid === $uid && (auth.token.firebase.sign_in_provider === 'google.com' || auth.token.firebase.sign_in_provider === 'password') && (!newData.exists() || ((auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true) || (auth.token.email_verified === true && root.child('allowedTeachers/' + auth.token.email.toLowerCase().replace('.', ',')).exists())))"
+          }
+        },
+        "favorites": {
+          ".write": "auth != null && auth.uid === $uid && (auth.token.firebase.sign_in_provider === 'google.com' || auth.token.firebase.sign_in_provider === 'password') && auth.token.email_verified === true",
+          ".validate": "newData.val() === false || newData.hasChildren()",
+          "$i": {
+            ".validate": "$i.matches(/^[0-9]{1,2}$/) && newData.hasChildren(['name', 'url'])",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60"
+            },
+            "url": {
+              ".validate": "newData.isString() && newData.val().length <= 2000 && newData.val().matches(/^https?:\\/\\/.+/)"
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         },
         "$other": {
@@ -95,7 +111,7 @@
         ".write": "auth != null && data.child('meta/ownerUid').val() === auth.uid && !newData.exists()",
         "meta": {
           ".read": "auth != null && root.child('exams/' + $examId + '/students/' + auth.uid).exists()",
-          ".write": "auth != null && auth.token.firebase.sign_in_provider === 'google.com' && ((!data.exists() && newData.child('ownerUid').val() === auth.uid && ((auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true) || (auth.token.email_verified === true && root.child('allowedTeachers/' + auth.token.email.toLowerCase().replace('.', ',')).exists()))) || (data.exists() && newData.exists() && data.child('ownerUid').val() === auth.uid))",
+          ".write": "auth != null && (auth.token.firebase.sign_in_provider === 'google.com' || auth.token.firebase.sign_in_provider === 'password') && ((!data.exists() && newData.child('ownerUid').val() === auth.uid && ((auth.token.email_verified === true && root.child('admins/' + auth.token.email.toLowerCase().replace('.', ',')).val() === true) || (auth.token.email_verified === true && root.child('allowedTeachers/' + auth.token.email.toLowerCase().replace('.', ',')).exists()))) || (data.exists() && newData.exists() && data.child('ownerUid').val() === auth.uid))",
           ".validate": "newData.hasChildren(['name', 'durationMin', 'mode', 'toleranceMs', 'alertText', 'status', 'code', 'ownerUid', 'createdAt'])",
           "name": {
             ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120 && (!data.exists() || data.val() === newData.val())"

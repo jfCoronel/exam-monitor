@@ -2,6 +2,7 @@ import { $, esc, fmtClock, fmtDur, fmtTime, fmtHM, eventTime, isInfraction, isNo
   GRACE_MS, examEndsAt, examClosesAt, studentLabel } from '../common.js';
 import { t, getLang, locale, mountLangSwitch } from '../i18n/index.js';
 import { createBackend } from '../backend.js';
+import { mountSignIn } from '../signin.js';
 
 const be = createBackend();
 const examId = new URLSearchParams(location.search).get('exam');
@@ -68,14 +69,7 @@ be.onUser((user) => {
   });
 });
 
-$('#btn-signin').addEventListener('click', async (e) => {
-  const errEl = $('#signin-error');
-  errEl.hidden = true;
-  try { await be.signInTeacher(); } catch (err) {
-    errEl.textContent = t(`err.${err.code || 'network'}`);
-    errEl.hidden = false;
-  }
-});
+mountSignIn($('#signin-box'), be);
 
 be.onServerOffset((ms) => { clockOffset = ms; });
 be.onConnected((online) => { $('#p-conn').hidden = online; });

@@ -5,6 +5,7 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth, connectAuthEmulator, onAuthStateChanged, onIdTokenChanged, signInAnonymously,
   signInWithPopup, signInWithCredential, GoogleAuthProvider, signOut,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, reload,
 } from 'firebase/auth';
 import {
   getDatabase, connectDatabaseEmulator, ref, get, set, update, push, query, orderByChild,
@@ -36,6 +37,22 @@ function randomCode() {
 /** Clave de un correo en RTDB: sin mayúsculas y con ',' en lugar de '.' (las reglas hacen lo mismo). */
 export const emailKey = (email) => String(email).trim().toLowerCase().replaceAll('.', ',');
 
+/** Contraseña mínima que pide la app (Firebase acepta 6; las reglas no la ven). */
+export const MIN_PASSWORD = 8;
+export const MAX_FAVORITES = 20;
+
+/** Traduce los errores de Firebase Auth al acceder con correo y contraseña. */
+function authError(err) {
+  const c = String(err?.code || '');
+  if (/invalid-credential|wrong-password|user-not-found|invalid-login/.test(c)) return new BackendError('bad_credentials', err);
+  if (/email-already-in-use/.test(c)) return new BackendError('email_in_use', err);
+  if (/weak-password|password-does-not-meet/.test(c)) return new BackendError('weak_password', err);
+  if (/invalid-email|missing-email/.test(c)) return new BackendError('email_invalid', err);
+  if (/too-many-requests/.test(c)) return new BackendError('too_many_attempts', err);
+  if (/operation-not-allowed/.test(c)) return new BackendError('password_disabled', err);
+  return wrap(err);
+}
+
 const normMeta = (id, v) => (v ? { id, ...v, tools: v.tools ? Object.values(v.tools) : [] } : null);
 
 export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
@@ -56,6 +73,11 @@ export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
     const stop = onAuthStateChanged(auth, (u) => { stop(); resolve(u); });
   });
 
+  // onAuthStateChanged no avisa cuando el usuario verifica su correo: refreshUser() avisa a mano.
+  const userListeners = new Set();
+  // Enlace de los correos de verificación y de contraseña: volver a la página desde la que se pidió.
+  const actionSettings = () => (globalThis.location?.protocol?.startsWith('http') ? { url: globalThis.location.href } : undefined);
+
   const uidOrThrow = () => {
     const u = auth.currentUser;
     if (!u) throw new BackendError('signed_out');
@@ -70,8 +92,21 @@ export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
     // ---------- Sesión ----------
     ready: () => authReady,
     currentUser: () => auth.currentUser,
-    onUser: (cb) => onAuthStateChanged(auth, cb),
-    isTeacher: (u = auth.currentUser) => !!u && !u.isAnonymous && u.providerData.some((p) => p.providerId === 'google.com'),
+    onUser(cb) {
+      userListeners.add(cb);
+      const stop = onAuthStateChanged(auth, cb);
+      return () => { userListeners.delete(cb); stop(); };
+    },
+    /** Profesor = cuenta de Google, o de correo y contraseña con el correo ya verificado. */
+    isTeacher: (u = auth.currentUser) => !!u && !u.isAnonymous && (
+      u.providerData.some((p) => p.providerId === 'google.com')
+      || (u.emailVerified && u.providerData.some((p) => p.providerId === 'password'))),
+    /** Cuenta de correo y contraseña a la que le falta verificar el correo. */
+    needsVerification: (u = auth.currentUser) => !!u && !u.isAnonymous && !u.emailVerified
+      && u.providerData.some((p) => p.providerId === 'password')
+      && !u.providerData.some((p) => p.providerId === 'google.com'),
+    /** Idioma de los correos que envía Firebase (verificación, contraseña). */
+    setAuthLanguage: (code) => { auth.languageCode = code; },
 
     /** Profesor: ventana de Google. En tests se pasa una credencial (ver googleCredential). */
     async signInTeacher(credential) {
@@ -85,6 +120,46 @@ export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
       }
     },
     googleCredential: (idTokenJson) => GoogleAuthProvider.credential(idTokenJson),
+
+    /** Profesor con correo y contraseña. No sirve para nada hasta verificar el correo (las reglas lo exigen). */
+    async signInWithPassword(email, password) {
+      try { return (await signInWithEmailAndPassword(auth, String(email).trim(), password)).user; } catch (err) { throw authError(err); }
+    },
+    /** Crea la cuenta y envía el correo de verificación. */
+    async signUpWithPassword(email, password) {
+      if (String(password).length < MIN_PASSWORD) throw new BackendError('weak_password');
+      let user;
+      try { user = (await createUserWithEmailAndPassword(auth, String(email).trim(), password)).user; } catch (err) { throw authError(err); }
+      try { await sendEmailVerification(user, actionSettings()); } catch { /* se puede reenviar desde la pantalla de verificación */ }
+      return user;
+    },
+    async sendVerification() {
+      const u = auth.currentUser;
+      if (!u) throw new BackendError('signed_out');
+      try { await sendEmailVerification(u, actionSettings()); } catch (err) { throw authError(err); }
+    },
+    /**
+     * Correo para elegir contraseña nueva. Si el correo no tiene cuenta, Firebase no lo dice (protección
+     * contra la enumeración de correos), así que la interfaz da el mismo mensaje en los dos casos.
+     */
+    async resetPassword(email) {
+      try { await sendPasswordResetEmail(auth, String(email).trim(), actionSettings()); } catch (err) {
+        const e = authError(err);
+        if (e.code !== 'bad_credentials') throw e;
+      }
+    },
+    /** Vuelve a leer la cuenta (p. ej. tras verificar el correo en otra pestaña) y pide un token nuevo. */
+    async refreshUser() {
+      const u = auth.currentUser;
+      if (!u) return null;
+      const wasVerified = u.emailVerified;
+      try { await reload(u); } catch (err) { throw wrap(err); }
+      if (u.emailVerified !== wasVerified) {
+        await u.getIdToken(true); // las reglas leen email_verified del token
+        userListeners.forEach((cb) => cb(u));
+      }
+      return u;
+    },
 
     /** Alumno: sesión anónima. Persiste en IndexedDB, así que sobrevive a recargas. */
     async signInStudent() {
@@ -174,6 +249,22 @@ export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
         }
       }
       throw new BackendError('create_failed');
+    },
+
+    /**
+     * Herramientas favoritas del profesor, en vivo: cb(null) si nunca ha tocado la lista (la interfaz
+     * muestra las de por defecto) o cb([{ name, url }]) en orden.
+     */
+    watchFavorites(cb) {
+      return onValue(ref(db, `teachers/${uidOrThrow()}/favorites`), (s) => {
+        const v = s.val();
+        cb(v === null ? null : v === false ? [] : Object.keys(v).sort((a, b) => a - b).map((k) => v[k]));
+      }, () => cb(null));
+    },
+    /** Guarda la lista entera (máximo 20). Vacía se guarda como false, para no volver a las de por defecto. */
+    setFavorites(list) {
+      const v = list.length ? Object.fromEntries(list.slice(0, MAX_FAVORITES).map((f, i) => [i, { name: f.name, url: f.url }])) : false;
+      return set(ref(db, `teachers/${uidOrThrow()}/favorites`), v).catch((err) => { throw wrap(err); });
     },
 
     async listMyExams() {

@@ -67,7 +67,7 @@ a { color: var(--pen); }
 /* ---------- Formularios ---------- */
 label { display: block; font-weight: 700; margin-bottom: 6px; }
 .hint { display: block; font-weight: 400; color: var(--muted); font-size: .875rem; }
-input[type="text"], input[type="number"], input[type="url"], select, textarea {
+input[type="text"], input[type="number"], input[type="url"], input[type="email"], input[type="password"], select, textarea {
   width: 100%;
   font: inherit;
   color: inherit;
@@ -82,9 +82,22 @@ fieldset { border: 0; padding: 0; margin: 0; }
 legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
 
 
-.tool-row { display: grid; grid-template-columns: 1fr 2fr auto; gap: 8px; }
+.tool-row { display: grid; grid-template-columns: 1fr 2fr auto auto; gap: 8px; }
 .tool-row + .tool-row { margin-top: 8px; }
-@media (max-width: 560px) { .tool-row { grid-template-columns: 1fr; } }
+.t-fav { font-size: 1.25rem; line-height: 1; color: var(--pen); }
+@media (max-width: 560px) {
+  .tool-row { grid-template-columns: 1fr auto auto; }
+  .tool-row .t-name, .tool-row .t-url { grid-column: 1 / -1; }
+  .tool-row .t-fav { grid-column: 2; }
+}
+
+/* Favoritas: casillas para añadir con un clic las herramientas de siempre */
+.fav-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.fav-bar .row { gap: 8px; }
+.fav-chip { display: inline-flex; border: 1px solid var(--pen); border-radius: var(--r-sm); overflow: hidden; }
+.fav-chip button { border: 0; border-radius: 0; padding: 6px 10px; color: var(--pen); }
+.fav-chip .fav-del { border-left: 1px solid var(--line); color: var(--muted); padding: 6px 8px; }
+.fav-chip .fav-add:disabled { opacity: 1; color: var(--muted); cursor: default; background: var(--pen-soft); }
 
 details summary { cursor: pointer; font-weight: 700; }
 
@@ -111,6 +124,12 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .btn-big { font-size: 1.125rem; padding: 14px 24px; }
 
 .error { color: var(--bad); font-weight: 700; }
+
+/* ---------- Acceso del profesor (signin.js) ---------- */
+.signin-or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: .875rem; }
+.signin-or::before, .signin-or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.signin-ok { color: var(--ok); font-weight: 700; }
+#signin-box form, #signin-box .signin-or { max-width: 28rem; }
 
 /* ---------- Código en casillas ---------- */
 .code-boxes { display: inline-flex; gap: 6px; }

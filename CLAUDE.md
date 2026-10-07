@@ -16,7 +16,7 @@ No es un "lockdown browser": no bloquea nada, **detecta y registra**. El profeso
 - Frontend estático en **GitHub Pages** (`https://exam-monitor.jfcoronel.org`, CNAME en Cloudflare,
   solo DNS). El workflow `.github/workflows/ci.yml` pasa los tests y publica `public/` en cada push a `main`.
 - **Firebase** (proyecto `exam-monitor-jfc`, cuenta jfcoroneltoro@gmail.com, región `europe-west1`):
-  Realtime Database + Auth (Google para profesores, anónimo para alumnos). No hay servidor propio.
+  Realtime Database + Auth (Google o correo y contraseña para profesores, anónimo para alumnos). No hay servidor propio.
   La versión anterior con servidor Node está en la etiqueta `v0.1.0-node`.
 - HTML + CSS + JS vanilla con módulos ES. **Sin build, sin framework.** El SDK de Firebase llega
   por un import map en cada HTML (`firebase/app` → gstatic). En Node, el mismo import resuelve al
@@ -43,7 +43,8 @@ public/firebase-config.js  Config web (pública) y de emuladores
 public/common.js        Utilidades: esc(), formatos, isInfraction(), textos de eventos
 public/i18n/            index.js (t, applyI18n, selector), es.js, en.js
 public/alumno/          PWA del alumno (unirse, sala de espera, examen, monitor de foco)
-public/profesor/        Acceso con Google + crear examen (index.html, crear.js), panel en vivo (panel.*)
+public/signin.js        Acceso del profesor (Google, o correo y contraseña con verificación); lo usan profesor/ y admin/
+public/profesor/        Acceso + crear examen (index.html, crear.js), panel en vivo (panel.*)
 public/sw.js            Service worker (red primero, caché de respaldo); rutas relativas
 public/admin/           Administración: solicitudes y profesores autorizados
 public/version.js       Versión de la app (única fuente; se muestra en el pie)
@@ -67,6 +68,7 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
 /exams/{examId}/events/{uid}/{clientId}  { type, ts, clientTs?, durationMs?, reason? }
 /exams/{examId}/submitted/{uid}    ts                          el alumno terminó (una sola vez)
 /teachers/{uid}/exams/{examId}     { name, code, createdAt }
+/teachers/{uid}/favorites          { 0: { name, url }, 1: … } | false   herramientas favoritas del profesor
 /admins/{emailKey}                 true                        solo se edita desde consola o CLI
 /allowedTeachers/{emailKey}        { email, addedAt, addedBy }  profesores autorizados (los gestiona el admin)
 /accessRequests/{uid}              { email, name?, requestedAt } solicitudes pendientes
@@ -75,6 +77,9 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
 `emailKey` = correo en minúsculas con `.` → `,` (`emailKey()` en backend.js; las reglas hacen lo mismo con
 `auth.token.email.toLowerCase().replace('.', ',')`).
 
+- **Favoritas**: en crear examen, casillas para añadir con un clic las herramientas de siempre; la ☆ de
+  cada fila guarda o quita. Sin el nodo (`null`) se ofrecen fProperties y pSolver (`DEFAULT_FAVORITES`
+  en crear.js); la lista vacía se guarda como `false` para no volver a las de por defecto.
 - `status`: `waiting → active → finished` (o `waiting → finished`). Nunca vuelve atrás.
 - La configuración del examen es inmutable una vez creado, salvo `durationMin`, que el profesor puede
   cambiar hasta que el examen esté `finished` («Cambiar duración» en el panel).
@@ -94,6 +99,13 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
 
 ## Permisos de profesor
 
+- Cuentas de profesor: Google o correo y contraseña (`signin.js`). Las reglas aceptan los proveedores
+  `google.com` y `password`, y todo lo que da permisos exige `email_verified`: una cuenta de contraseña
+  no sirve hasta abrir el enlace de verificación (si no, cualquiera podría registrarse con el correo
+  de un profesor autorizado). `be.isTeacher()` hace la misma comprobación en el cliente;
+  `be.refreshUser()` relee la cuenta tras verificar (onAuthStateChanged no lo avisa) y pide un token nuevo.
+- Con «una cuenta por correo» (opción por defecto de Firebase), quien entró con Google y luego intenta
+  crear una cuenta de contraseña con el mismo correo recibe `email_in_use`.
 - Crear exámenes exige estar en `/allowedTeachers` o en `/admins` (reglas de `codes`, `meta` y
   `teachers`). La aprobación es por cuenta y permanente: una sola solicitud, exámenes ilimitados,
   hasta que el admin la retire. Sin permiso se pueden seguir finalizando y borrando los exámenes propios.
@@ -102,7 +114,8 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
 - Administrador en producción: jfcoroneltoro@gmail.com. Añadir otro:
   `npx firebase database:set "/admins/<correo con , en vez de .>" --data true`.
 - En los emuladores, `scripts/seed-emulator.js` crea `admin@example.com` (admin) y
-  `profesor@example.com` (autorizado); en la ventana de Google del emulador, «Add new account» y ese correo.
+  `profesor@example.com` (autorizado); en la ventana de Google del emulador, «Add new account» y ese correo. Con correo y contraseña, el
+  enlace de verificación sale en la terminal (o en `http://127.0.0.1:9099/emulator/v1/projects/demo-foco/oobCodes`).
 
 ## Eventos
 
