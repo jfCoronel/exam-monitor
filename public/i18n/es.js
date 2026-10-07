@@ -176,6 +176,7 @@ export default {
 
   'reason.blur': 'la ventana del examen perdió el foco',
   'reason.hidden': 'página oculta (otra pestaña, ventana minimizada…)',
+  'reason.extension': 'el foco pasó a algo que no es del examen (probablemente una extensión del navegador)',
   'reason.window': 'la ventana del examen perdió el foco (modo ventana: no se puede saber a qué ventana fue)',
   'reason.tool': 'abrió la herramienta {name}',
 

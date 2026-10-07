@@ -176,6 +176,7 @@ export default {
 
   'reason.blur': 'the exam window lost focus',
   'reason.hidden': 'page hidden (another tab, minimised window…)',
+  'reason.extension': 'focus moved to something that isn’t part of the exam (probably a browser extension)',
   'reason.window': 'the exam window lost focus (window mode: can’t tell which window they went to)',
   'reason.tool': 'opened the tool {name}',
 

@@ -37,7 +37,7 @@ test('todas las claves que usa el código existen', () => {
   }
   // Claves que se construyen en tiempo de ejecución.
   for (const e of CLIENT_EVENTS) used.add(`ev.${e}`);
-  for (const r of ['blur', 'hidden', 'window', 'tool']) used.add(`reason.${r}`);
+  for (const r of ['blur', 'hidden', 'extension', 'window', 'tool']) used.add(`reason.${r}`);
   for (const s of ['waiting', 'active', 'finished']) used.add(`status.${s}`);
   for (const k of ['conn.online', 'conn.offline']) used.add(k);
   const backend = readFileSync(join(PUBLIC, 'backend.js'), 'utf8');

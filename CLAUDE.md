@@ -89,7 +89,7 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
   real del hecho corregida con `.info/serverTimeOffset` (puede llegar tarde si no había red).
 - **La incidencia no se guarda**: se calcula al mostrar con `isInfraction()` (common.js): un
   `away_end` con `durationMs >= toleranceMs`, o un `page_leave`.
-- `type` y `reason` son códigos independientes del idioma. `reason`: `hidden`, `blur` (y, en
+- `type` y `reason` son códigos independientes del idioma. `reason`: `hidden`, `blur`, `extension` (y, en
   exámenes antiguos del modo ventana, `window` y `tool:<nombre>`). Se traducen al mostrarlos.
 
 ## Permisos de profesor
@@ -128,6 +128,13 @@ Fuente de verdad: sondeo cada 500 ms de `document.visibilityState === 'visible' 
 Clave: `document.hasFocus()` sigue siendo `true` cuando el foco está dentro de un iframe de la
 página, así que **usar la herramienta incrustada no cuenta como salir**. Esto se ha verificado en
 Chromium; hay que verificarlo en Firefox y Safari.
+
+Además, el foco tiene que estar en algo nuestro (`foreignFocus()`): `document.body`, un elemento
+que cuelga de lo que trae el HTML o un iframe de herramienta creado por nosotros. Muchas extensiones
+de IA (Sider, Monica…) meten su chat dentro de la página y escribir ahí no quita el foco a la página;
+si `document.activeElement` es un elemento o iframe ajeno, cuenta como salida con motivo `extension`.
+Las extensiones de panel lateral o ventana emergente (Claude, Gemini) ya se detectan como `blur`.
+No se ve lo que una extensión meta dentro de los iframes de las herramientas.
 
 Al volver, el alumno **siempre** ve cuánto ha estado fuera: aviso breve que se cierra solo si no
 llega a la tolerancia; diálogo rojo si es incidencia. Salir de pantalla completa

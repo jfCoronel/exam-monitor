@@ -202,6 +202,7 @@ function buildToolArea() {
   // Cada herramienta en un iframe dentro de esta página. Se crean al abrir la pestaña
   // por primera vez y luego solo se ocultan, para no perder lo que el alumno haya hecho.
   const frames = new Map();
+  ownFrames = new WeakSet();
   const select = (i) => {
     [...tabs.children].forEach((b, j) => b.setAttribute('aria-selected', String(i === j)));
     if (!frames.has(i)) {
@@ -211,6 +212,7 @@ function buildToolArea() {
       f.allow = 'clipboard-read; clipboard-write; fullscreen';
       area.append(f);
       frames.set(i, f);
+      ownFrames.add(f);
     }
     frames.forEach((f, j) => { f.hidden = j !== i; });
   };
@@ -229,7 +231,19 @@ function buildToolArea() {
 // hasFocus() sigue siendo true cuando el foco está dentro de un iframe de esta página,
 // así que usar la herramienta incrustada NO cuenta como salir. Los eventos blur/visibilitychange
 // solo adelantan la comprobación para que sea inmediata.
+// Además, el foco tiene que estar en algo nuestro: muchas extensiones de IA meten su chat dentro de
+// la página (content script, iframe o shadow DOM) y escribir ahí no hace perder el foco a la página.
 let pollTimer = null;
+let ownFrames = new WeakSet();                // iframes de las herramientas que hemos creado nosotros
+const OWN_ROOTS = [...document.body.children]; // lo que trae el HTML; las extensiones añaden fuera
+
+/** El foco está en un elemento o iframe que no es de la página del examen (una extensión). */
+function foreignFocus() {
+  const el = document.activeElement;
+  if (!el || el === document.body || el === document.documentElement) return false;
+  if (el.tagName === 'IFRAME' || el.tagName === 'FRAME') return !ownFrames.has(el);
+  return !OWN_ROOTS.some((root) => root.contains(el));
+}
 const monitoring = () => entered && examOpen();
 
 function startMonitoring() {
@@ -249,8 +263,9 @@ function stopMonitoring() {
 function check() {
   if (!monitoring()) return;
   const visible = document.visibilityState === 'visible';
-  const focused = visible && document.hasFocus();
-  if (!focused && !away) startAway(visible ? 'blur' : 'hidden');
+  const foreign = visible && document.hasFocus() && foreignFocus();
+  const focused = visible && document.hasFocus() && !foreign;
+  if (!focused && !away) startAway(!visible ? 'hidden' : foreign ? 'extension' : 'blur');
   else if (focused && away) endAway(true);
 }
 
@@ -322,6 +337,7 @@ function setAwayTitle(on) { document.title = on ? t('title.away') : t('app.name'
 document.addEventListener('visibilitychange', check);
 window.addEventListener('blur', () => setTimeout(check, 50));
 window.addEventListener('focus', check);
+document.addEventListener('focusin', check); // el foco pasa a otro elemento de la página
 
 document.addEventListener('fullscreenchange', () => {
   const out = !document.fullscreenElement;

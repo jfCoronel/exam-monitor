@@ -190,6 +190,14 @@ CSV) funciona en la URL de Pages con dos navegadores reales.
       reloj a la derecha (v0.5.0).
 - [x] Quitado el modo ventana: cada uso de la herramienta contaba como salida. Solo queda el modo
       pestaña hasta que exista la extensión de navegador (v0.5.1).
+- [x] Extensiones de IA que meten su chat dentro de la página: si el foco está en un elemento o iframe
+      que no es del examen, cuenta como salida con motivo «extensión» (v0.5.2).
+- [ ] Avisar en el panel (ámbar) si aparecen en la página del examen elementos que no son nuestros
+      (`MutationObserver`), aunque el alumno no llegue a escribir en ellos. Ojo con los falsos positivos
+      (gestores de contraseñas, traductores).
+- [ ] fProperties y pSolver avisan por `postMessage` a la página del examen si una extensión les mete
+      elementos (desde fuera no se ve dentro de sus iframes).
+- [ ] Probar a mano con extensiones de chat flotante (Sider, Monica, Merlin) en Chrome y Edge.
 - [ ] **Iframe bloqueado**: si una herramienta no carga (tiempo de espera o `X-Frame-Options`),
       mostrar al alumno qué pasa y que esa herramienta no se puede usar en el examen. Útil para URLs
       que no sean las tuyas.
