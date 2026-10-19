@@ -297,3 +297,23 @@ test('duración y fin por tiempo', async (t) => {
   await setStatus(google('prof'), 'finished', { endedAt: TS });
   await t.test('con el examen finalizado ya no se cambia', () => assertFails(duration(google('prof'), 120)));
 });
+
+test('herramientas: se cambian hasta que el examen termina', async (t) => {
+  await reset();
+  await createExam(google('prof'));
+  await join('al1');
+  const tools = (db, list) => db.ref(`exams/${EXAM}/meta/tools`).set(list);
+  const PS = { name: 'pSolver', url: 'https://psolver.jfcoronel.org/' };
+  await t.test('el profesor añade una antes de empezar', () =>
+    assertSucceeds(tools(google('prof'), [{ name: 'fProperties', url: 'https://fproperties.jfcoronel.org/' }, PS])));
+  await t.test('otro profesor no puede', () => assertFails(tools(google('otro'), [PS])));
+  await t.test('el alumno no puede', () => assertFails(tools(anon('al1'), [PS])));
+  await t.test('URL no http(s), no', () => assertFails(tools(google('prof'), [{ name: 'x', url: 'javascript:alert(1)' }])));
+  await t.test('más de 10, no', () => assertFails(tools(google('prof'), Array.from({ length: 11 }, () => PS))));
+  await setStatus(google('prof'), 'active', { startedAt: TS });
+  await t.test('durante el examen quita una', () => assertSucceeds(tools(google('prof'), [PS])));
+  await t.test('y las quita todas', () => assertSucceeds(tools(google('prof'), null)));
+  await t.test('y vuelve a añadir', () => assertSucceeds(tools(google('prof'), [PS])));
+  await setStatus(google('prof'), 'finished', { endedAt: TS });
+  await t.test('con el examen finalizado ya no se cambian', () => assertFails(tools(google('prof'), [PS, PS])));
+});

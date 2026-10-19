@@ -65,14 +65,7 @@
 
         <fieldset>
           <legend data-i18n="create.tools">Herramientas permitidas</legend>
-          <div class="fav-bar">
-            <span class="small muted" data-i18n="create.favorites">Favoritas</span>
-            <div class="row" id="fav-list"></div>
-          </div>
-          <p class="hint" data-i18n="create.favHint">Pulsa ☆ junto a una herramienta para guardarla en favoritas.</p>
-          <p class="error small" id="fav-error" role="alert" hidden></p>
-          <div id="tools"></div>
-          <p style="margin-top: 8px"><button type="button" class="btn-quiet" id="add-tool" data-i18n="create.addTool">Añadir herramienta</button></p>
+          <div id="tools-editor"></div>
         </fieldset>
 
         <details>
@@ -100,15 +93,6 @@
     </div>
   </main>
   <footer class="site-footer"></footer>
-
-  <template id="tool-row">
-    <div class="tool-row">
-      <input type="text" class="t-name" maxlength="60" data-i18n-attr="placeholder:create.toolName;aria-label:create.toolNameLabel">
-      <input type="url" class="t-url" placeholder="https://…" data-i18n-attr="aria-label:create.toolUrlLabel">
-      <button type="button" class="btn-quiet t-fav" aria-pressed="false">☆</button>
-      <button type="button" class="btn-quiet t-del" data-i18n="create.removeTool">Quitar</button>
-    </div>
-  </template>
 
   <script type="module" src="crear.js"></script>
 </body>

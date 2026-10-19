@@ -44,7 +44,8 @@ public/common.js        Utilidades: esc(), formatos, isInfraction(), textos de e
 public/i18n/            index.js (t, applyI18n, selector), es.js, en.js
 public/alumno/          PWA del alumno (unirse, sala de espera, examen, monitor de foco)
 public/signin.js        Acceso del profesor (Google, o correo y contraseña con verificación); lo usan profesor/ y admin/
-public/profesor/        Acceso + crear examen (index.html, crear.js), panel en vivo (panel.*)
+public/profesor/        Acceso + crear examen (index.html, crear.js), panel en vivo (panel.*),
+                        editor de herramientas compartido (tools-editor.js: filas, favoritas, «Probar»)
 public/sw.js            Service worker (red primero, caché de respaldo); rutas relativas
 public/admin/           Administración: solicitudes y profesores autorizados
 public/version.js       Versión de la app (única fuente; se muestra en el pie)
@@ -79,10 +80,13 @@ Todas las rutas son **relativas** (la app funciona en un dominio propio, en un s
 
 - **Favoritas**: en crear examen, casillas para añadir con un clic las herramientas de siempre; la ☆ de
   cada fila guarda o quita. Sin el nodo (`null`) se ofrecen fProperties y pSolver (`DEFAULT_FAVORITES`
-  en crear.js); la lista vacía se guarda como `false` para no volver a las de por defecto.
+  en tools-editor.js); la lista vacía se guarda como `false` para no volver a las de por defecto.
 - `status`: `waiting → active → finished` (o `waiting → finished`). Nunca vuelve atrás.
-- La configuración del examen es inmutable una vez creado, salvo `durationMin`, que el profesor puede
-  cambiar hasta que el examen esté `finished` («Cambiar duración» en el panel).
+- La configuración del examen es inmutable una vez creado, salvo `durationMin` y `tools`, que el profesor
+  puede cambiar hasta que el examen esté `finished` («Cambiar duración» y «Cambiar herramientas» en el
+  panel). El alumno recibe las herramientas nuevas al momento: las que siguen (misma URL) conservan su
+  iframe y lo que tenga hecho; las quitadas desaparecen. Se le avisa con un aviso breve. Si el iframe
+  quitado tenía el foco, durante 1 s no se cuenta como salida (`toolChangeAt` en alumno.js).
 - **Fin automático**: agotada la duración (`startedAt + durationMin`) hay 2 min de cortesía (`GRACE_MS` en
   common.js; las reglas de eventos usan el mismo `120000`). Al terminar, el alumno deja de supervisar y
   el panel abierto finaliza el examen; las reglas rechazan eventos y entregas fuera de ese plazo.
@@ -164,7 +168,13 @@ herramienta contaba como salida. Volverá con la extensión de navegador (ver PL
 `window` y `tool:<nombre>` de exámenes antiguos se siguen traduciendo.
 
 fproperties.jfcoronel.org y psolver.jfcoronel.org se pueden incrustar (sin `X-Frame-Options` ni
-CSP, comprobado el 27/09/2026). Para otras URLs, comprobar con `curl -I <url>`.
+CSP, comprobado el 27/09/2026). Para otras URLs, comprobar con `curl -I <url>`. ev.us.es (Blackboard
+de la US) no se puede (`X-Frame-Options: SAMEORIGIN`, `frame-ancestors 'self'`), ni Moodle por defecto.
+
+Desde la página no se sabe si un iframe está bloqueado (dispara `load` con la página de error y sus
+cabeceras no se pueden leer): el profesor lo comprueba con «Probar» en crear examen, que abre una
+vista previa. Al alumno solo se le avisa, con «Reintentar», si la herramienta no carga en 20 s
+(`TOOL_LOAD_MS` en alumno.js).
 
 ## Internacionalización
 

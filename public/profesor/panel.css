@@ -74,3 +74,8 @@
 /* Número de orden en la tarjeta del alumno */
 .card .c-num { display: inline-block; min-width: 2ch; margin-right: 6px; padding: 0 4px; border: 1.5px solid var(--ink); border-radius: 3px; color: var(--pen); text-align: center; font-size: .875rem; }
 .clock-t.grace { color: var(--warn); }
+
+/* Cambiar herramientas */
+.tools-dialog { width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 28px;
+  border: 1px solid var(--line); border-radius: var(--r-md); color: var(--ink); background: var(--sheet); }
+.tools-dialog::backdrop { background: rgba(20, 35, 58, .6); }

@@ -93,6 +93,18 @@ ok(await waitFor(() => alMeta?.durationMin === 120), 'el profesor cambia la dura
 // ---------- Examen en curso ----------
 await prof.startExam(exam.id);
 ok(await waitFor(() => alMeta?.status === 'active' && alMeta.startedAt > 0), 'el alumno recibe el inicio del examen');
+
+// ---------- Herramientas durante el examen ----------
+const PS = { name: 'pSolver', url: 'https://psolver.jfcoronel.org/' };
+await prof.setTools(exam.id, [...EXAM_INPUT.tools, PS]);
+ok(await waitFor(() => alMeta?.tools?.length === 2 && alMeta.tools[1].name === 'pSolver'), 'el profesor añade una herramienta y el alumno la recibe');
+await prof.setTools(exam.id, [PS]);
+ok(await waitFor(() => alMeta?.tools?.length === 1 && alMeta.tools[0].name === 'pSolver'), 'el profesor quita una herramienta');
+await prof.setTools(exam.id, []);
+ok(await waitFor(() => alMeta?.tools?.length === 0), 'y puede dejar el examen sin herramientas');
+await prof.setTools(exam.id, EXAM_INPUT.tools);
+ok(await waitFor(() => alMeta?.tools?.[0]?.name === 'fProperties'), 'y volver a ponerlas');
+ok(await rejects(al.setTools(exam.id, [PS])), 'el alumno no puede cambiar las herramientas');
 pres.setActive(true);
 
 const now = Date.now();
@@ -145,6 +157,7 @@ ok(await rejects(intruso.finishExam(exam.id, exam.code)), 'otro profesor no pued
 await prof.finishExam(exam.id, exam.code);
 ok(await waitFor(() => alMeta?.status === 'finished'), 'el alumno recibe el fin del examen');
 ok(await rejects(prof.setDuration(exam.id, 30)), 'con el examen finalizado no se cambia la duración');
+ok(await rejects(prof.setTools(exam.id, [PS])), 'ni las herramientas');
 ok(await rejects(al.sendEvent(exam.id, { clientId: id(), type: 'away_start' })), 'no registra eventos con el examen finalizado');
 const al2 = createBackend({ emulator: true, name: 'al2' });
 ok(await rejects(al2.joinExam(exam.code, 'Luis')), 'no se puede unir a un examen finalizado');

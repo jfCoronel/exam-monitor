@@ -299,6 +299,10 @@ export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
     setDuration: (examId, durationMin) => update(ref(db, `exams/${examId}/meta`), { durationMin })
       .catch((err) => { throw wrap(err); }),
 
+    /** Cambia las herramientas permitidas. Se puede hacer en cualquier momento antes de finalizar. */
+    setTools: (examId, tools) => set(ref(db, `exams/${examId}/meta/tools`), tools.length ? tools : null)
+      .catch((err) => { throw wrap(err); }),
+
     finishExam: (examId, code) => update(ref(db), {
       [`exams/${examId}/meta/status`]: 'finished',
       [`exams/${examId}/meta/endedAt`]: serverTimestamp(),

@@ -147,7 +147,7 @@
             ".validate": "(data.exists() && data.val() === newData.val()) || (!data.exists() && newData.val() === now && newData.parent().child('status').val() === 'finished')"
           },
           "tools": {
-            ".validate": "!data.exists()",
+            ".validate": "!data.exists() || data.parent().child('status').val() !== 'finished'",
             "$i": {
               ".validate": "$i.matches(/^[0-9]$/) && newData.hasChildren(['name', 'url'])",
               "name": {

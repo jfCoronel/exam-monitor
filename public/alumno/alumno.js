@@ -5,6 +5,7 @@ import { createBackend } from '../backend.js';
 const SESSION_KEY = 'examMonitor.alumno';
 const NAME_KEY = 'examMonitor.ultimoNombre';
 const POLL_MS = 500;
+const TOOL_LOAD_MS = 20_000; // si una herramienta no ha cargado en este tiempo, se avisa al alumno
 
 const be = createBackend();
 
@@ -103,10 +104,9 @@ function startSession() {
   presence = be.presence(session.examId, { clientTs: serverNow, newId: uid });
   stopMeta = be.watchMeta(session.examId, (m) => {
     if (!m) return resetSession(); // el profesor ha borrado el examen
-    const wasActive = exam?.status === 'active';
     exam = m;
     presence.setActive(examOpen());
-    if (exam.status === 'active' && !wasActive && entered) buildToolArea();
+    if (exam.status === 'active' && entered) syncTools();
     render();
   }, (err) => { if (err.code === 'permission') resetSession(); });
   queue.forEach(deliver); // reenvío de lo que quedó pendiente antes de recargar
@@ -159,7 +159,7 @@ $('#btn-enter').addEventListener('click', async () => {
   await goFullscreen();
   entered = true;
   sendEvent('exam_enter');
-  buildToolArea();
+  syncTools();
   render();
   startMonitoring();
 });
@@ -188,42 +188,128 @@ $('#btn-submit-yes').addEventListener('click', () => {
 });
 
 // ---------- Herramientas ----------
-function buildToolArea() {
+// Cada herramienta en un iframe dentro de esta página. Se crean al abrir la pestaña por primera vez
+// y luego solo se ocultan, para no perder lo que el alumno haya hecho.
+// Si no termina de cargar (sin red, servidor caído), se le dice al alumno con un botón para reintentar.
+// Una web que prohíbe que la incrusten no se detecta (dispara `load` con la página de error del
+// navegador): eso se comprueba antes, con la vista previa de crear examen.
+// El profesor puede cambiar las herramientas durante el examen: las que siguen (misma URL) conservan
+// su iframe; las quitadas desaparecen y las nuevas se añaden como pestañas.
+let panes = new Map();   // clave → { tool, frame?, box?, loaded, timer }
+let currentKey = null;
+let toolsShown = null;   // herramientas que se mostraron la última vez (para avisar de los cambios)
+let toolChangeAt = 0;    // al quitar el iframe con el foco puede haber un instante sin foco: no es salida
+
+/** Clave estable de cada herramienta: su URL (con un número si se repite). */
+function keysOf(tools) {
+  const seen = new Map();
+  return tools.map((tool) => {
+    const n = (seen.get(tool.url) || 0) + 1;
+    seen.set(tool.url, n);
+    return n === 1 ? tool.url : `${tool.url}#${n}`;
+  });
+}
+
+function showPanes() {
+  panes.forEach((p, k) => {
+    if (!p.frame) return;
+    p.frame.hidden = k !== currentKey;
+    p.box.hidden = k !== currentKey || p.loaded || !!p.timer;
+  });
+  [...$('#tool-tabs').children].forEach((b) => b.setAttribute('aria-selected', String(b.dataset.key === currentKey)));
+}
+
+function loadPane(p) {
+  p.loaded = false;
+  clearTimeout(p.timer);
+  p.timer = setTimeout(() => { p.timer = null; showPanes(); }, TOOL_LOAD_MS);
+  p.frame.src = p.tool.url;
+  showPanes();
+}
+
+function selectTool(key) {
+  currentKey = key;
+  const p = panes.get(key);
+  if (p && !p.frame) {
+    const f = document.createElement('iframe');
+    f.title = p.tool.name;
+    f.allow = 'clipboard-read; clipboard-write; fullscreen';
+    const box = document.createElement('div');
+    box.className = 'tool-failed';
+    box.setAttribute('role', 'alert');
+    box.innerHTML = `<div><h2></h2><p></p><button class="btn-primary"></button></div>`;
+    f.addEventListener('load', () => { p.loaded = true; clearTimeout(p.timer); p.timer = null; showPanes(); });
+    box.querySelector('button').addEventListener('click', () => loadPane(p));
+    $('#tool-area').append(f, box);
+    Object.assign(p, { frame: f, box });
+    renderPaneTexts(p);
+    ownFrames.add(f);
+    loadPane(p);
+  }
+  showPanes();
+}
+
+function renderPaneTexts(p) {
+  if (!p.box) return;
+  p.box.querySelector('h2').textContent = t('exam.toolFailedTitle', { name: p.tool.name });
+  p.box.querySelector('p').textContent = t('exam.toolFailedText');
+  p.box.querySelector('button').textContent = t('exam.toolRetry');
+}
+
+function removePane(p) {
+  clearTimeout(p.timer);
+  if (p.frame && document.activeElement === p.frame) toolChangeAt = Date.now();
+  p.frame?.remove();
+  p.box?.remove();
+}
+
+/** Pone las pestañas y los iframes de acuerdo con exam.tools, conservando los que no cambian. */
+function syncTools() {
   if (!exam) return;
   renderExamBar();
-  const tabs = $('#tool-tabs'), area = $('#tool-area');
-  tabs.innerHTML = ''; area.innerHTML = '';
+  const tools = exam.tools;
+  const keys = keysOf(tools);
+  const next = new Map();
+  keys.forEach((k, i) => {
+    const p = panes.get(k) || { loaded: false, timer: null };
+    p.tool = tools[i];
+    if (p.frame) p.frame.title = p.tool.name;
+    renderPaneTexts(p);
+    next.set(k, p);
+  });
+  panes.forEach((p, k) => { if (!next.has(k)) removePane(p); });
+  panes = next;
 
-  if (!exam.tools.length) {
-    area.innerHTML = `<div class="tool-empty"><h2>${esc(t('exam.noToolsTitle'))}</h2><p>${esc(t('exam.noToolsText'))}</p></div>`;
-    return;
-  }
-
-  // Cada herramienta en un iframe dentro de esta página. Se crean al abrir la pestaña
-  // por primera vez y luego solo se ocultan, para no perder lo que el alumno haya hecho.
-  const frames = new Map();
-  ownFrames = new WeakSet();
-  const select = (i) => {
-    [...tabs.children].forEach((b, j) => b.setAttribute('aria-selected', String(i === j)));
-    if (!frames.has(i)) {
-      const f = document.createElement('iframe');
-      f.src = exam.tools[i].url;
-      f.title = exam.tools[i].name;
-      f.allow = 'clipboard-read; clipboard-write; fullscreen';
-      area.append(f);
-      frames.set(i, f);
-      ownFrames.add(f);
-    }
-    frames.forEach((f, j) => { f.hidden = j !== i; });
-  };
-  exam.tools.forEach((tool, i) => {
+  const tabs = $('#tool-tabs');
+  tabs.innerHTML = '';
+  keys.forEach((k, i) => {
     const b = document.createElement('button');
     b.setAttribute('role', 'tab');
-    b.textContent = tool.name;
-    b.addEventListener('click', () => select(i));
+    b.dataset.key = k;
+    b.textContent = tools[i].name;
+    b.addEventListener('click', () => selectTool(k));
     tabs.append(b);
   });
-  select(0);
+
+  $('#tool-area').querySelector('.tool-empty')?.remove();
+  if (!keys.length) {
+    currentKey = null;
+    $('#tool-area').insertAdjacentHTML('beforeend',
+      `<div class="tool-empty"><h2>${esc(t('exam.noToolsTitle'))}</h2><p>${esc(t('exam.noToolsText'))}</p></div>`);
+  } else selectTool(panes.has(currentKey) ? currentKey : keys[0]);
+
+  // Aviso al alumno de lo que ha cambiado (no la primera vez).
+  if (toolsShown) {
+    const before = new Set(toolsShown.map((x) => x.url)), after = new Set(tools.map((x) => x.url));
+    const added = tools.filter((x) => !before.has(x.url)).map((x) => x.name);
+    const removed = toolsShown.filter((x) => !after.has(x.url)).map((x) => x.name);
+    const msg = [
+      added.length ? t('exam.toolsAdded', { names: added.join(', ') }) : null,
+      removed.length ? t('exam.toolsRemoved', { names: removed.join(', ') }) : null,
+    ].filter(Boolean).join(' ');
+    if (msg) showToast(msg);
+  }
+  toolsShown = tools;
 }
 
 // ---------- Monitor de foco ----------
@@ -265,6 +351,7 @@ function check() {
   const visible = document.visibilityState === 'visible';
   const foreign = visible && document.hasFocus() && foreignFocus();
   const focused = visible && document.hasFocus() && !foreign;
+  if (!focused && !away && Date.now() - toolChangeAt < 1000) return; // ver removePane()
   if (!focused && !away) startAway(!visible ? 'hidden' : foreign ? 'extension' : 'blur');
   else if (focused && away) endAway(true);
 }
@@ -397,14 +484,15 @@ mountFooter();
 document.addEventListener('langchange', () => {
   render();
   if (notice) renderNotice();
-  if (monitoring()) buildToolAreaTextsOnly();
+  if (monitoring()) { panes.forEach(renderPaneTexts); syncToolsEmptyText(); }
   setAwayTitle(!!away);
   const pill = $('#bar-conn');
   if (pill.dataset.online) pill.textContent = t(pill.dataset.online === 'true' ? 'conn.online' : 'conn.offline');
 });
 // Durante el examen no se reconstruyen los iframes (se perdería el trabajo): solo los textos.
-function buildToolAreaTextsOnly() {
-  if (!exam.tools.length) buildToolArea();
+function syncToolsEmptyText() {
+  const el = $('#tool-area').querySelector('.tool-empty');
+  if (el) el.innerHTML = `<h2>${esc(t('exam.noToolsTitle'))}</h2><p>${esc(t('exam.noToolsText'))}</p>`;
 }
 
 // ---------- Arranque ----------

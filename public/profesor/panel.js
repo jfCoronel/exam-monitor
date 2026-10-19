@@ -3,6 +3,7 @@ import { $, esc, fmtClock, fmtDur, fmtTime, fmtHM, eventTime, isInfraction, isNo
 import { t, getLang, locale, mountLangSwitch } from '../i18n/index.js';
 import { createBackend } from '../backend.js';
 import { mountSignIn } from '../signin.js';
+import { mountToolsEditor } from './tools-editor.js';
 
 const be = createBackend();
 const examId = new URLSearchParams(location.search).get('exam');
@@ -96,6 +97,8 @@ function renderHeader() {
   $('#btn-start').hidden = exam.status !== 'waiting';
   $('#btn-end').hidden = exam.status !== 'active';
   $('#btn-duration').hidden = exam.status === 'finished';
+  $('#btn-tools').hidden = exam.status === 'finished';
+  if (exam.status === 'finished' && $('#tools-dialog').open) $('#tools-dialog').close();
   $('#p-clock').hidden = exam.status !== 'active';
   $('#btn-project').hidden = exam.status === 'finished';
   document.querySelector('.join-strip').hidden = exam.status === 'finished';
@@ -129,6 +132,32 @@ $('#btn-duration').addEventListener('click', () => {
   const min = Number(answer.trim());
   if (!Number.isInteger(min) || min < 1 || min > 600) { alert(t('err.duration_range')); return; }
   if (min !== exam.durationMin) run(() => be.setDuration(exam.id, min));
+});
+// Herramientas: los alumnos reciben el cambio al momento (las que siguen igual no se recargan).
+const toolsDialog = $('#tools-dialog');
+const toolsEditor = mountToolsEditor($('#tools-editor'), be);
+$('#btn-tools').addEventListener('click', () => {
+  toolsEditor.watchFavorites();
+  toolsEditor.setTools(exam.tools);
+  $('#tools-error').hidden = true;
+  toolsDialog.showModal();
+});
+$('#tools-cancel').addEventListener('click', () => toolsDialog.close());
+$('#tools-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = $('#tools-error');
+  errEl.hidden = true;
+  const { tools, error } = toolsEditor.read();
+  if (error) { errEl.textContent = error; errEl.hidden = false; return; }
+  const same = JSON.stringify(tools) === JSON.stringify(exam.tools.map(({ name, url }) => ({ name, url })));
+  const btn = e.submitter; btn.disabled = true;
+  try {
+    if (!same) await be.setTools(exam.id, tools);
+    toolsDialog.close();
+  } catch (err) {
+    errEl.textContent = t(`err.${err.code || 'network'}`);
+    errEl.hidden = false;
+  } finally { btn.disabled = false; }
 });
 $('#btn-delete').addEventListener('click', () => {
   if (!confirm(t('panel.confirmDelete'))) return;

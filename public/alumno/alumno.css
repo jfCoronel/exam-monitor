@@ -21,6 +21,10 @@
 
 .tool-area { position: relative; flex: 1; min-height: 0; }
 .tool-area iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+/* La herramienta no termina de cargar: aviso encima de su iframe */
+.tool-failed { position: absolute; inset: 0; z-index: 1; background: var(--sheet); padding: 64px 20px; }
+.tool-failed > div { max-width: 60ch; margin: 0 auto; border-top: 6px solid var(--warn); padding-top: 16px; }
+.tool-failed h2 { color: var(--warn); }
 
 .tool-empty { max-width: 60ch; margin: 64px auto; padding: 0 20px; }
 

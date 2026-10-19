@@ -48,6 +48,7 @@
         <button class="btn-primary btn-big" id="btn-start" hidden data-i18n="panel.start">Iniciar examen</button>
         <span class="clock-t" id="p-clock" hidden></span>
         <button id="btn-duration" hidden data-i18n="panel.duration">Cambiar duración</button>
+        <button id="btn-tools" hidden data-i18n="panel.tools">Cambiar herramientas</button>
         <button class="btn-danger" id="btn-end" hidden data-i18n="panel.end">Finalizar examen</button>
         <button id="btn-project" data-i18n="panel.project">Proyectar código</button>
         <button id="btn-csv" data-i18n="panel.csv">Exportar CSV</button>
@@ -116,6 +117,20 @@
     <div class="qr qr-big" id="pr-qr"></div>
     <button id="pr-close" data-i18n="common.close">Cerrar</button>
   </div>
+
+  <!-- Cambiar las herramientas permitidas (hasta que el examen termine) -->
+  <dialog class="tools-dialog" id="tools-dialog" aria-labelledby="tools-title">
+    <form class="stack" id="tools-form" novalidate>
+      <h2 id="tools-title" data-i18n="panel.toolsTitle">Herramientas permitidas</h2>
+      <p class="small" data-i18n="panel.toolsText"></p>
+      <div id="tools-editor"></div>
+      <p class="error" id="tools-error" role="alert" hidden></p>
+      <div class="row">
+        <button type="submit" class="btn-primary" data-i18n="panel.toolsSave">Guardar</button>
+        <button type="button" id="tools-cancel" data-i18n="panel.toolsCancel">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
 
   <script type="module" src="panel.js"></script>
 </body>

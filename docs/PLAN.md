@@ -204,9 +204,14 @@ CSV) funciona en la URL de Pages con dos navegadores reales.
       guardadas en la cuenta del profesor (v0.6.0).
 - [ ] Personalizar en la consola de Firebase el remitente y las plantillas de los correos de
       verificación y de contraseña (hoy salen de noreply@exam-monitor-jfc.firebaseapp.com).
-- [ ] **Iframe bloqueado**: si una herramienta no carga (tiempo de espera o `X-Frame-Options`),
-      mostrar al alumno qué pasa y que esa herramienta no se puede usar en el examen. Útil para URLs
-      que no sean las tuyas.
+- [x] **Iframe bloqueado** (v0.7.0): botón «Probar» en crear examen, que abre la web en un iframe como
+      la verá el alumno; y aviso al alumno con «Reintentar» si una herramienta no carga en 20 s. Un
+      iframe bloqueado por `X-Frame-Options`/`frame-ancestors` no se puede detectar desde la página
+      (dispara `load` igual y no se leen sus cabeceras; comprobado en Chrome): por eso la vista previa.
+      Blackboard de la US (ev.us.es) y Moodle por defecto no se dejan incrustar.
+- [x] Cambiar las herramientas durante el examen desde el panel (v0.7.0). El alumno no pierde lo hecho
+      en las que siguen. Falta comprobar en un navegador con ventana (no headless) que quitar la
+      herramienta que tiene el foco no da una salida falsa.
 - [ ] Recarga durante el examen: volver directamente a la vista de examen (hoy hay que pulsar
       "Entrar" otra vez y hay un hueco sin supervisión).
 - [ ] Alumno que se une dos veces (otro navegador, almacenamiento borrado): avisar en el panel de
