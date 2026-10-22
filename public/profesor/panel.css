@@ -66,6 +66,8 @@
 .res-table .bad { color: var(--bad); font-weight: 700; }
 .res-table .warn { color: var(--warn); font-weight: 700; }
 .res-table .ok { color: var(--ok); font-weight: 700; }
+.res-legend { padding-left: 1.2em; margin: 0; }
+.res-legend li { margin-bottom: 4px; }
 .res-table .zero { color: var(--muted); opacity: .6; }
 
 /* Registro de incidencias: abajo, discreto y plegable */

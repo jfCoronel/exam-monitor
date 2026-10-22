@@ -207,12 +207,14 @@ $('#btn-csv').addEventListener('click', () => {
 // ---------- Estado derivado de cada alumno ----------
 function summarize(s) {
   const now = Date.now() + clockOffset;
-  const infractions = s.events.filter((e) => isInfraction(e, exam)).length;
+  let infractions = s.events.filter((e) => isInfraction(e, exam)).length;
   let awayMs = s.events.filter((e) => e.type === 'away_end').reduce((a, e) => a + (e.durationMs || 0), 0);
   // Una salida sin away_end no puede durar más que el examen: tras el cierre o la entrega no llegan eventos.
   const until = Math.min(now, exam?.endedAt ?? Infinity, examClosesAt(exam) ?? Infinity, s.submittedAt ?? Infinity);
   const awayNow = s.away ? Math.max(0, until - s.away.since) : 0;
   awayMs += awayNow;
+  // La salida en curso cuenta en cuanto pasa la tolerancia: si el examen termina con el alumno fuera, no llega away_end.
+  if (s.away && awayNow >= (exam?.toleranceMs || 0)) infractions++;
 
   let cls = '', label = t('st.waiting'), pill = 'pen';
   if (s.submittedAt) { cls = 'st-done'; label = t('st.submitted', { time: fmtTime(s.submittedAt) }); pill = 'ok'; }
@@ -268,7 +270,6 @@ function results(s) {
     awayMs: enter ? sum.awayMs : null,
     awayPct: inExamMs ? Math.min(100, Math.round((100 * sum.awayMs) / inExamMs)) : null, // durationMs es del reloj del alumno
     exits: count('away_start'),
-    longestMs: Math.max(0, sum.awayNow, ...s.events.filter((e) => e.type === 'away_end').map((e) => e.durationMs || 0)),
     infractions: sum.infractions,
     fullscreen: count('fullscreen_exit'),
     disconnects: count('disconnected'),
@@ -287,7 +288,6 @@ const COLS = [
   { key: 'awayMs', label: 'res.away', kind: 'dur' },
   { key: 'awayPct', label: 'res.awayPct', kind: 'pct' },
   { key: 'exits', label: 'res.exits', kind: 'n' },
-  { key: 'longestMs', label: 'res.longest', kind: 'dur' },
   { key: 'infractions', label: 'res.infractions', kind: 'n' },
   { key: 'fullscreen', label: 'res.fullscreen', kind: 'n' },
   { key: 'disconnects', label: 'res.disconnects', kind: 'n' },
@@ -341,6 +341,8 @@ function renderResults() {
       ['res.sumNotStarted', n((r) => r.result === 'notStarted')], ['res.sumFlagged', n((r) => r.infractions > 0)]]
       .filter(([, count]) => count).map(([k, count]) => t(k, { count })),
   ].join(' · ');
+  $('#res-legend').innerHTML = ['res.legInExam', 'res.legAway', 'res.legExits', 'res.legInfractions', 'res.legDisconnects', 'res.legHow']
+    .map((k) => `<li>${esc(t(k, { tol: fmtDur(exam.toleranceMs || 0) }))}</li>`).join('');
   $('#res-head').innerHTML = COLS.map((c) => `
     <th class="${c.kind === 'text' || c.kind === 'result' ? '' : 'n'}"${c.key === sortKey ? ` aria-sort="${sortDir > 0 ? 'ascending' : 'descending'}"` : ''}>
       <button data-sort="${c.key}">${esc(t(c.label))}${c.key === sortKey ? (sortDir > 0 ? ' ↑' : ' ↓') : ''}</button></th>`).join('');

@@ -137,8 +137,8 @@ Fuera Ns (dentro de la tolerancia, ámbar) · En el examen · Sin empezar (unido
 En la sala de espera. «Con incidencias» no es una situación sino un filtro sobre el historial.
 
 Con el examen finalizado, el panel cambia contadores y tarjetas por una tabla de resultados (`results()` y `COLS` en
-panel.js): tiempo en el examen (de `exam_enter` a la entrega o al cierre), tiempo fuera, % fuera, salidas, la más
-larga, incidencias, salidas de pantalla completa y desconexiones. Se ordena por columnas y se exporta a CSV
+panel.js): tiempo en el examen (de `exam_enter` a la entrega o al cierre), tiempo fuera, % fuera, salidas, incidencias
+(contando la salida que sigue abierta al cierre), salidas de pantalla completa y pérdidas de conexión. Se ordena por columnas y se exporta a CSV
 (duraciones como h:mm:ss); el CSV de eventos sigue disponible.
 
 - `disconnected`: lo escribe el **servidor** con `onDisconnect()`, armado por el alumno al empezar
