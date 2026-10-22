@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Crear examen | Exam Monitor</title>
+  <title>Tus exámenes | Exam Monitor</title>
   <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -45,12 +45,17 @@
     </section>
 
     <div id="teacher" hidden>
-      <section class="sheet" id="my-exams" hidden>
-        <h2 data-i18n="create.myExams">Tus exámenes</h2>
+      <section class="sheet stack" id="my-exams">
+        <div class="row spread">
+          <h1 data-i18n="create.myExams">Tus exámenes</h1>
+          <a class="btn btn-primary" href="#nuevo" data-i18n="create.new">Nuevo examen</a>
+        </div>
+        <p class="muted" id="my-exams-empty" hidden data-i18n="create.noExams">Aún no has creado ningún examen.</p>
         <ul id="my-exams-list"></ul>
       </section>
 
-      <form class="sheet stack" id="create-form" novalidate>
+      <form class="sheet stack" id="create-form" novalidate hidden>
+        <div><a href="#" data-i18n="create.back">← Volver a tus exámenes</a></div>
         <h1 data-i18n="create.title">Crear examen</h1>
 
         <div>

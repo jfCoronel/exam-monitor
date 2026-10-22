@@ -129,7 +129,17 @@ Tipos: `exam_enter`, `away_start`, `away_end`, `fullscreen_exit`, `page_leave`, 
 - `exam_submit`: botón «Terminar examen» de la barra (confirmación dentro de la página, no `confirm()`).
   Se escribe junto con `/submitted/{uid}` en una sola actualización; desde ahí las reglas rechazan
   cualquier otro evento de ese alumno. La supervisión se detiene *antes* de salir de pantalla completa.
-  En el panel pasa a «Terminó HH:MM», al final de la lista, y no cuenta como sin conexión.
+  En el panel pasa a «Entregado HH:MM», al final de la lista, y no cuenta como sin conexión.
+
+Situación de cada alumno en el panel (`summarize()` en panel.js; si coinciden, gana la primera): Entregado HH:MM ·
+No entregó (examen cerrado sin «Terminar») · Sin conexión · Fuera Ns · incidencia (≥ tolerancia, rojo) ·
+Fuera Ns (dentro de la tolerancia, ámbar) · En el examen · Sin empezar (unido, examen en marcha, sin `exam_enter`) ·
+En la sala de espera. «Con incidencias» no es una situación sino un filtro sobre el historial.
+
+Con el examen finalizado, el panel cambia contadores y tarjetas por una tabla de resultados (`results()` y `COLS` en
+panel.js): tiempo en el examen (de `exam_enter` a la entrega o al cierre), tiempo fuera, % fuera, salidas, la más
+larga, incidencias, salidas de pantalla completa y desconexiones. Se ordena por columnas y se exporta a CSV
+(duraciones como h:mm:ss); el CSV de eventos sigue disponible.
 
 - `disconnected`: lo escribe el **servidor** con `onDisconnect()`, armado por el alumno al empezar
   el examen y en cada reconexión. `reconnected` lo escribe el alumno al recuperar la conexión.

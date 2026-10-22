@@ -34,9 +34,16 @@
   </main>
 
   <div class="panel" id="panel" hidden>
+    <header class="topbar">
+      <a class="brand" href="../"><img src="../icons/icon.svg" alt=""> <span data-i18n="app.name">Exam Monitor</span></a>
+      <div class="row">
+        <a class="small" href="./" data-i18n="panel.backToList">← Tus exámenes</a>
+        <span class="small muted" id="user-email"></span>
+        <div class="lang-switch"></div>
+      </div>
+    </header>
     <header class="panel-head">
       <div>
-        <div class="row small"><a class="brand" href="../"><img src="../icons/icon.svg" alt=""> <span data-i18n="app.name">Exam Monitor</span></a> <a href="./" data-i18n="panel.myExams">Mis exámenes</a> <span class="lang-switch"></span></div>
         <h1 id="p-name"></h1>
         <div class="row small">
           <span class="pill" id="p-status"></span>
@@ -51,7 +58,7 @@
         <button id="btn-tools" hidden data-i18n="panel.tools">Cambiar herramientas</button>
         <button class="btn-danger" id="btn-end" hidden data-i18n="panel.end">Finalizar examen</button>
         <button id="btn-project" data-i18n="panel.project">Proyectar código</button>
-        <button id="btn-csv" data-i18n="panel.csv">Exportar CSV</button>
+        <button id="btn-csv" data-i18n="panel.csv">Exportar eventos (CSV)</button>
         <button class="btn-quiet" id="btn-delete" data-i18n="panel.delete">Borrar examen</button>
       </div>
     </header>
@@ -71,7 +78,7 @@
       <div class="c-bad"><strong id="c-away">0</strong><span data-i18n="panel.cAway">fuera ahora</span></div>
       <div class="c-warn"><strong id="c-off">0</strong><span data-i18n="panel.cOff">sin conexión</span></div>
       <div><strong id="c-flag">0</strong><span data-i18n="panel.cFlag">con incidencias</span></div>
-      <div class="c-ok"><strong id="c-done">0</strong><span data-i18n="panel.cDone">han terminado</span></div>
+      <div class="c-ok"><strong id="c-done">0</strong><span data-i18n="panel.cDone">han entregado</span></div>
     </section>
 
     <section class="students">
@@ -84,15 +91,31 @@
             <option value="away" data-i18n="panel.f.away">Fuera ahora</option>
             <option value="flagged" data-i18n="panel.f.flagged">Con incidencias</option>
             <option value="offline" data-i18n="panel.f.offline">Sin conexión</option>
-            <option value="notEntered" data-i18n="panel.f.notEntered">Sin entrar</option>
+            <option value="notEntered" data-i18n="panel.f.notEntered">Sin empezar</option>
             <option value="in" data-i18n="panel.f.in">En el examen</option>
-            <option value="done" data-i18n="panel.f.done">Han terminado</option>
+            <option value="done" data-i18n="panel.f.done">Entregados</option>
           </select>
         </label>
       </div>
       <div class="grid" id="grid"></div>
       <p class="muted" id="grid-empty" data-i18n="panel.empty">Todavía no se ha unido nadie. Proyecta el código para que los alumnos entren.</p>
       <p class="muted" id="grid-none" hidden></p>
+    </section>
+
+    <!-- Examen finalizado: tabla con el resumen de cada alumno (sustituye a contadores y tarjetas) -->
+    <section class="results" id="results" hidden>
+      <div class="row spread">
+        <h2 data-i18n="res.title">Resultados</h2>
+        <button class="btn-primary" id="btn-csv-results" data-i18n="res.csv">Exportar tabla (CSV)</button>
+      </div>
+      <p class="muted small" id="res-summary"></p>
+      <div class="table-wrap">
+        <table class="res-table">
+          <thead><tr id="res-head"></tr></thead>
+          <tbody id="res-body"></tbody>
+        </table>
+      </div>
+      <p class="muted small" data-i18n="res.note"></p>
     </section>
 
     <!-- Registro: últimas incidencias de la clase o, al pulsar una tarjeta, todos los eventos de ese alumno -->

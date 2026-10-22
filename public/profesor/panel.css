@@ -40,13 +40,33 @@
 .card:hover { background: #fbfcfe; border-color: var(--pen); }
 .card[aria-pressed="true"] { outline: 2px solid var(--pen); }
 .card .c-name { font-weight: 700; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card .c-line { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-top: 6px; font-size: .8125rem; color: var(--muted); }
+.card .c-line { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; font-size: .8125rem; color: var(--muted); }
+/* «Fuera 2 s (dentro de la tolerancia)» no cabe en una tarjeta estrecha */
+.card .pill { white-space: normal; text-align: left; }
 .card.st-ok { border-left-color: var(--ok); }
 .card.st-away { border-left-color: var(--bad); background: var(--bad-soft); }
 .card.st-away-short { border-left-color: var(--warn); }
 .card.st-off { border-left-color: var(--warn); }
 .card.st-done { border-left-color: var(--ok); opacity: .8; }
 .card .flags { font-weight: 700; color: var(--bad); }
+
+/* Resultados del examen finalizado */
+.table-wrap { overflow-x: auto; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-md); margin: 8px 0 12px; }
+.res-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.res-table th, .res-table td { padding: 8px 10px; border-bottom: 1px solid var(--grid); text-align: left; white-space: nowrap; }
+.res-table .n { text-align: right; font-variant-numeric: tabular-nums; }
+.res-table th { background: var(--paper); font-size: .8125rem; vertical-align: bottom; }
+.res-table th button { all: unset; cursor: pointer; font-weight: 700; color: var(--ink); white-space: normal; }
+.res-table th button:hover, .res-table th button:focus-visible { color: var(--pen); text-decoration: underline; }
+.res-table th[aria-sort] button { color: var(--pen); }
+.res-table tbody tr { cursor: pointer; }
+.res-table tbody tr:hover { background: var(--pen-soft); }
+.res-table tbody tr[aria-selected="true"] { outline: 2px solid var(--pen); outline-offset: -2px; }
+.res-table tbody tr:last-child td { border-bottom: 0; }
+.res-table .bad { color: var(--bad); font-weight: 700; }
+.res-table .warn { color: var(--warn); font-weight: 700; }
+.res-table .ok { color: var(--ok); font-weight: 700; }
+.res-table .zero { color: var(--muted); opacity: .6; }
 
 /* Registro de incidencias: abajo, discreto y plegable */
 .log-box { margin-top: 28px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--sheet); padding: 10px 16px; }

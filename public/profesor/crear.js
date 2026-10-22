@@ -61,9 +61,21 @@ $('#btn-request').addEventListener('click', async (e) => {
 mountSignIn($('#signin-box'), be);
 $('#btn-signout').addEventListener('click', () => be.signOut());
 
+// ---------- Vistas ----------
+// La página abre en la lista de exámenes; «Nuevo examen» lleva a #nuevo (así funciona el botón Atrás).
+const creating = () => location.hash === '#nuevo';
+function showView() {
+  $('#my-exams').hidden = creating();
+  $('#create-form').hidden = !creating();
+  document.title = `${t(creating() ? 'create.title' : 'create.myExams')} | ${t('app.name')}`;
+  window.scrollTo(0, 0);
+  if (creating()) $('#f-name').focus();
+}
+window.addEventListener('hashchange', showView);
+
 // ---------- Mis exámenes ----------
 function renderMyExams() {
-  $('#my-exams').hidden = !myExams.length;
+  $('#my-exams-empty').hidden = !!myExams.length;
   $('#my-exams-list').innerHTML = myExams
     .map((e) => `<li><a href="panel.html?exam=${encodeURIComponent(e.id)}">${esc(e.name)}</a>
       <span class="muted small">${esc(t('create.examLine', { code: e.code, date: fmtDateTime(e.createdAt) }))}</span></li>`)
@@ -100,7 +112,7 @@ $('#create-form').addEventListener('submit', async (e) => {
       toleranceMs: Number($('#f-tolerance').value) * 1000,
       alertText: alertEl.value.trim().slice(0, 300) || t('create.alertDefault'),
     });
-    location.href = `panel.html?exam=${encodeURIComponent(exam.id)}`;
+    location.replace(`panel.html?exam=${encodeURIComponent(exam.id)}`); // Atrás vuelve a la lista, no al formulario
   } catch (err) {
     fail(t(`err.${err.code || 'network'}`));
   } finally { btn.disabled = false; }
@@ -110,10 +122,10 @@ $('#create-form').addEventListener('submit', async (e) => {
 mountLangSwitch();
 mountFooter();
 setDefaultAlert();
-document.title = `${t('create.title')} | ${t('app.name')}`;
+showView();
 document.addEventListener('langchange', () => {
   setDefaultAlert();
   renderMyExams();
   if (access && !access.approved) renderPending();
-  document.title = `${t('create.title')} | ${t('app.name')}`;
+  document.title = `${t(creating() ? 'create.title' : 'create.myExams')} | ${t('app.name')}`;
 });

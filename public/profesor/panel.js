@@ -53,6 +53,7 @@ if (!examId) showState('no-access');
 be.onUser((user) => {
   if (!examId) return;
   if (!be.isTeacher(user)) { stopWatch?.(); stopWatch = null; return showState('no-access'); }
+  $('#user-email').textContent = user.email || '';
   if (stopWatch) return;
   students.clear();
   stopWatch = be.watchExam(examId, {
@@ -177,9 +178,18 @@ $('#pr-close').addEventListener('click', closeProjector);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#projector').hidden) closeProjector(); });
 
 // ---------- CSV (se genera en el navegador) ----------
-$('#btn-csv').addEventListener('click', () => {
+function downloadCsv(rows, name) {
   const sep = getLang() === 'es' ? ';' : ','; // Excel en español espera ';'
   const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const csv = '\uFEFF' + rows.map((r) => r.map(cell).join(sep)).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `${name}-${exam.code}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+$('#btn-csv').addEventListener('click', () => {
   const fmt = (ms) => new Date(ms).toLocaleString(locale());
   const rows = [[t('csv.num'), t('csv.student'), t('csv.event'), t('csv.type'), t('csv.time'), t('csv.duration'), t('csv.reason'), t('csv.infraction')]];
   const all = [...students.values()].flatMap((s) => s.events.map((e) => ({ s, e })))
@@ -190,12 +200,7 @@ $('#btn-csv').addEventListener('click', () => {
       e.type.startsWith('away') ? reasonText(e.reason) : '', isInfraction(e, exam) ? t('csv.yes') : '']);
     rows[rows.length - 1].unshift(s.num ?? '');
   }
-  const csv = '﻿' + rows.map((r) => r.map(cell).join(sep)).join('\r\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = `${t('csv.file')}-${exam.code}-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  downloadCsv(rows, t('csv.file'));
 });
 
 // ---------- Estado derivado de cada alumno ----------
@@ -203,7 +208,9 @@ function summarize(s) {
   const now = Date.now() + clockOffset;
   const infractions = s.events.filter((e) => isInfraction(e, exam)).length;
   let awayMs = s.events.filter((e) => e.type === 'away_end').reduce((a, e) => a + (e.durationMs || 0), 0);
-  const awayNow = s.away ? Math.max(0, now - s.away.since) : 0;
+  // Una salida sin away_end no puede durar más que el examen: tras el cierre o la entrega no llegan eventos.
+  const until = Math.min(now, exam?.endedAt ?? Infinity, examClosesAt(exam) ?? Infinity, s.submittedAt ?? Infinity);
+  const awayNow = s.away ? Math.max(0, until - s.away.since) : 0;
   awayMs += awayNow;
 
   let cls = '', label = t('st.waiting'), pill = 'pen';
@@ -213,10 +220,10 @@ function summarize(s) {
   else if (s.away) {
     const long = awayNow >= (exam?.toleranceMs || 0);
     cls = long ? 'st-away' : 'st-away-short';
-    label = t('st.away', { dur: fmtDur(awayNow) }); pill = long ? 'bad pulse' : 'warn';
+    label = t(long ? 'st.awayLong' : 'st.awayShort', { dur: fmtDur(awayNow) }); pill = long ? 'bad pulse' : 'warn';
   } else if (s.entered && exam?.status === 'active') { cls = 'st-ok'; label = t('st.in'); pill = 'ok'; }
   else if (exam?.status === 'active') { label = t('st.notEntered'); pill = 'warn'; }
-  return { infractions, awayMs, cls, label, pill };
+  return { infractions, awayMs, awayNow, cls, label, pill };
 }
 
 // ---------- Qué tarjetas se muestran ----------
@@ -225,7 +232,7 @@ const FILTERS = {
   all: () => true,
   // Lo que pide que el profesor se acerque: fuera, sin conexión, sin entrar o con alguna incidencia.
   attention: (x) => !x.s.submittedAt && (FILTERS.away(x) || FILTERS.offline(x) || FILTERS.notEntered(x) || FILTERS.flagged(x)),
-  away: ({ s }) => !s.submittedAt && !!s.away,
+  away: ({ s }) => !s.submittedAt && !!s.away && exam?.status !== 'finished',
   // También quien está fuera ahora más de la tolerancia, aunque la incidencia no se registra hasta que vuelve.
   flagged: ({ sum }) => sum.infractions > 0 || sum.cls === 'st-away',
   offline: ({ s }) => !s.submittedAt && !s.online && exam?.status !== 'finished',
@@ -242,9 +249,131 @@ const store = {
 if (FILTERS[store.get(FILTER_KEY)]) $('#filter').value = store.get(FILTER_KEY);
 $('#log-box').open = store.get(LOG_KEY) === 'open';
 
+// ---------- Resultados (examen finalizado) ----------
+/** Resumen de un alumno para la tabla y su CSV. Los tiempos que no aplican son null. */
+function results(s) {
+  const sum = summarize(s);
+  const enter = s.events.find((e) => e.type === 'exam_enter');
+  const closedAt = Math.min(exam.endedAt ?? Infinity, examClosesAt(exam) ?? Infinity);
+  const end = s.submittedAt ?? (Number.isFinite(closedAt) ? closedAt : Date.now() + clockOffset);
+  const inExamMs = enter ? Math.max(0, end - eventTime(enter)) : null;
+  const count = (type) => s.events.filter((e) => e.type === type).length;
+  return {
+    s, sum,
+    result: s.submittedAt ? 'submitted' : enter ? 'notSubmitted' : 'notStarted',
+    enteredAt: enter ? eventTime(enter) : null,
+    submittedAt: s.submittedAt,
+    inExamMs,
+    awayMs: enter ? sum.awayMs : null,
+    awayPct: inExamMs ? Math.min(100, Math.round((100 * sum.awayMs) / inExamMs)) : null, // durationMs es del reloj del alumno
+    exits: count('away_start'),
+    longestMs: Math.max(0, sum.awayNow, ...s.events.filter((e) => e.type === 'away_end').map((e) => e.durationMs || 0)),
+    infractions: sum.infractions,
+    fullscreen: count('fullscreen_exit'),
+    disconnects: count('disconnected'),
+  };
+}
+
+// Columnas de la tabla y del CSV. kind: cómo se muestra y se exporta cada valor.
+const RESULT_ORDER = { submitted: 0, notSubmitted: 1, notStarted: 2 };
+const COLS = [
+  { key: 'num', label: 'res.num', kind: 'n', get: (r) => r.s.num ?? null },
+  { key: 'name', label: 'res.student', kind: 'text', get: (r) => r.s.name },
+  { key: 'result', label: 'res.result', kind: 'result', get: (r) => r.result },
+  { key: 'enteredAt', label: 'res.entered', kind: 'time' },
+  { key: 'submittedAt', label: 'res.submittedAt', kind: 'time' },
+  { key: 'inExamMs', label: 'res.inExam', kind: 'dur' },
+  { key: 'awayMs', label: 'res.away', kind: 'dur' },
+  { key: 'awayPct', label: 'res.awayPct', kind: 'pct' },
+  { key: 'exits', label: 'res.exits', kind: 'n' },
+  { key: 'longestMs', label: 'res.longest', kind: 'dur' },
+  { key: 'infractions', label: 'res.infractions', kind: 'n' },
+  { key: 'fullscreen', label: 'res.fullscreen', kind: 'n' },
+  { key: 'disconnects', label: 'res.disconnects', kind: 'n' },
+];
+const colValue = (c, r) => (c.get ? c.get(r) : r[c.key]);
+
+/** 83 s -> "0:01:23": en el CSV, siempre con horas, para que la hoja de cálculo no lo lea como h:mm. */
+const hms = (ms) => {
+  const s = Math.round(ms / 1000), pad = (n) => String(n).padStart(2, '0');
+  return `${Math.floor(s / 3600)}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
+};
+function showValue(c, v) {
+  if (v == null) return '—';
+  switch (c.kind) {
+    case 'time': return fmtTime(v);
+    case 'dur': return fmtDur(v);
+    case 'pct': return `${v} %`;
+    case 'result': return t(`res.r.${v}`);
+    default: return String(v);
+  }
+}
+function csvValue(c, v) {
+  if (v == null) return '';
+  switch (c.kind) {
+    case 'time': return fmtTime(v);
+    case 'dur': return hms(v);
+    case 'result': return t(`res.r.${v}`);
+    default: return v;
+  }
+}
+
+// Orden de la tabla: por defecto, el número de orden; al pulsar una columna, por ella (otra vez, al revés).
+let sortKey = 'num', sortDir = 1;
+function sortedResults() {
+  const col = COLS.find((c) => c.key === sortKey);
+  const key = (r) => (col.kind === 'result' ? RESULT_ORDER[r.result] : colValue(col, r));
+  return [...students.values()].map(results).sort((a, b) => {
+    const x = key(a), y = key(b);
+    if (x == null || y == null) return (x == null) - (y == null); // los vacíos, siempre al final
+    const d = typeof x === 'string' ? x.localeCompare(y, locale(), { sensitivity: 'base' }) : x - y;
+    return d * sortDir || (a.s.num ?? Infinity) - (b.s.num ?? Infinity);
+  });
+}
+
+function renderResults() {
+  const rows = sortedResults();
+  const n = (r) => rows.filter(r).length;
+  $('#res-summary').textContent = [
+    t('res.sumStudents', { count: rows.length }),
+    ...[['res.sumSubmitted', n((r) => r.result === 'submitted')], ['res.sumNotSubmitted', n((r) => r.result === 'notSubmitted')],
+      ['res.sumNotStarted', n((r) => r.result === 'notStarted')], ['res.sumFlagged', n((r) => r.infractions > 0)]]
+      .filter(([, count]) => count).map(([k, count]) => t(k, { count })),
+  ].join(' · ');
+  $('#res-head').innerHTML = COLS.map((c) => `
+    <th class="${c.kind === 'text' || c.kind === 'result' ? '' : 'n'}"${c.key === sortKey ? ` aria-sort="${sortDir > 0 ? 'ascending' : 'descending'}"` : ''}>
+      <button data-sort="${c.key}">${esc(t(c.label))}${c.key === sortKey ? (sortDir > 0 ? ' ↑' : ' ↓') : ''}</button></th>`).join('');
+  const cls = (c, r) => {
+    if (c.kind === 'result') return { submitted: 'ok', notSubmitted: 'warn', notStarted: '' }[r.result];
+    if (c.key === 'infractions' && r.infractions) return 'n bad';
+    if (colValue(c, r) === 0 && c.key !== 'num') return 'n zero'; // los ceros, en gris: se ve antes quién tiene algo
+    return c.kind === 'text' ? '' : 'n';
+  };
+  $('#res-body').innerHTML = rows.map((r) => `
+    <tr data-id="${esc(r.s.id)}" aria-selected="${r.s.id === selectedId}">
+      ${COLS.map((c) => `<td class="${cls(c, r)}">${esc(showValue(c, colValue(c, r)))}</td>`).join('')}</tr>`).join('');
+}
+
+$('#res-head').addEventListener('click', (e) => {
+  const key = e.target.closest('[data-sort]')?.dataset.sort;
+  if (!key) return;
+  if (key === sortKey) sortDir = -sortDir; else { sortKey = key; sortDir = 1; }
+  renderResults();
+});
+$('#btn-csv-results').addEventListener('click', () => {
+  const rows = sortedResults();
+  downloadCsv([COLS.map((c) => t(c.label)), ...rows.map((r) => COLS.map((c) => csvValue(c, colValue(c, r))))], t('res.csvFile'));
+});
+
 // ---------- Render ----------
 function renderAll() {
   if (!exam) return;
+  // Con el examen finalizado, la tabla de resultados sustituye a los contadores y las tarjetas.
+  const finished = exam.status === 'finished';
+  document.querySelector('.counters').hidden = finished;
+  document.querySelector('.students').hidden = finished;
+  $('#results').hidden = !finished;
+  if (finished) renderResults();
   const list = [...students.values()].map((s) => ({ s, sum: summarize(s) }));
   const count = (f) => list.filter(FILTERS[f]).length;
 
@@ -337,7 +466,7 @@ setInterval(() => {
       be.finishExam(exam.id, exam.code).catch(() => { finishing = false; }); // se reintenta en el siguiente tic
     }
   }
-  if ([...students.values()].some((s) => s.away)) renderAll();
+  if (exam.status !== 'finished' && [...students.values()].some((s) => s.away)) renderAll();
 }, 1000);
 
 // ---------- Idioma ----------
