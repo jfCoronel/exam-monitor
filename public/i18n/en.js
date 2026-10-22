@@ -164,7 +164,7 @@ export default {
   'panel.toolsSave': 'Save',
   'panel.toolsCancel': 'Cancel',
   'panel.project': 'Project code',
-  'panel.csv': 'Export events (CSV)',
+  'panel.csv': 'Export full log (CSV)',
   'panel.delete': 'Delete exam',
   'panel.confirmEnd': 'Finish the exam? Students will no longer be monitored.',
   'panel.confirmDelete': 'Delete the exam and all its records? This can’t be undone. Export the CSV first if you need it.',

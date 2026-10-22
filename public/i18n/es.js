@@ -164,7 +164,7 @@ export default {
   'panel.toolsSave': 'Guardar',
   'panel.toolsCancel': 'Cancelar',
   'panel.project': 'Proyectar código',
-  'panel.csv': 'Exportar eventos (CSV)',
+  'panel.csv': 'Exportar registro completo (CSV)',
   'panel.delete': 'Borrar examen',
   'panel.confirmEnd': '¿Finalizar el examen? Los alumnos dejarán de estar supervisados.',
   'panel.confirmDelete': '¿Borrar el examen y todos sus registros? No se puede deshacer. Exporta antes el CSV si lo necesitas.',

@@ -75,6 +75,7 @@
 .log-box summary { font-size: .9375rem; }
 .log-box[open] summary { margin-bottom: 8px; }
 .log-box .log { max-height: 40vh; overflow: auto; }
+.log-actions { margin-top: 12px; }
 .log { list-style: none; padding: 0; margin: 0; font-size: .8125rem; }
 .log li { padding: 5px 0; border-bottom: 1px solid var(--grid); display: grid; grid-template-columns: 8ch 1fr; gap: 8px; }
 .log time { color: var(--muted); }

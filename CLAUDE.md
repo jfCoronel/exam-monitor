@@ -139,7 +139,7 @@ En la sala de espera. «Con incidencias» no es una situación sino un filtro so
 Con el examen finalizado, el panel cambia contadores y tarjetas por una tabla de resultados (`results()` y `COLS` en
 panel.js): tiempo en el examen (de `exam_enter` a la entrega o al cierre), tiempo fuera, % fuera, salidas, incidencias
 (contando la salida que sigue abierta al cierre), salidas de pantalla completa y pérdidas de conexión. Se ordena por columnas y se exporta a CSV
-(duraciones como h:mm:ss); el CSV de eventos sigue disponible.
+(duraciones como h:mm:ss); el CSV con todos los eventos está en el desplegable de incidencias («Exportar registro completo (CSV)»).
 
 - `disconnected`: lo escribe el **servidor** con `onDisconnect()`, armado por el alumno al empezar
   el examen y en cada reconexión. `reconnected` lo escribe el alumno al recuperar la conexión.
