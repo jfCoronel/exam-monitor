@@ -163,6 +163,12 @@ si `document.activeElement` es un elemento o iframe ajeno, cuenta como salida co
 Las extensiones de panel lateral o ventana emergente (Claude, Gemini) ya se detectan como `blur`.
 No se ve lo que una extensión meta dentro de los iframes de las herramientas.
 
+El alumno ve en la barra su **tiempo fuera acumulado** («Fuera: 12 s»), también en el aviso al volver y en la
+pantalla final, para que el profesor pueda poner normas como «más de 30 s fuera anula el problema». Se calcula
+igual que en el panel (suma de `durationMs` de los `away_end` más la salida en curso) a partir de sus propios
+eventos en el servidor (`watchMyEvents`; las reglas le dejan leer solo los suyos) y de su cola sin enviar, así
+que sobrevive a recargas.
+
 Al volver, el alumno **siempre** ve cuánto ha estado fuera: aviso breve que se cierra solo si no
 llega a la tolerancia; diálogo rojo si es incidencia. Salir de pantalla completa
 abre un diálogo ámbar cuyo botón la vuelve a pedir (necesita el clic del alumno). Si coinciden,

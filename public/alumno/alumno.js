@@ -19,6 +19,8 @@ let entered = false;      // el alumno ha pulsado "Entrar al examen" en esta car
 let submittedAt = null;   // hora a la que el alumno terminó su examen (no se puede deshacer)
 let away = null;          // { since, reason } mientras está fuera
 let queue = [];           // eventos pendientes de confirmar por el servidor (sobreviven a recargas)
+let myEvents = {};        // eventos propios ya guardados en el servidor: clientId -> evento
+let stopMyEvents = null;
 
 function readJSON(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
 const queueKey = () => `examMonitor.cola.${session?.examId}`;
@@ -28,6 +30,19 @@ const serverNow = () => Date.now() + clockOffset;
 /** Se agotaron el tiempo y la cortesía: el examen está cerrado para este alumno aunque nadie lo haya finalizado. */
 const timeOver = () => exam?.status === 'active' && serverNow() >= examClosesAt(exam);
 const examOpen = () => exam?.status === 'active' && !submittedAt && !timeOver();
+
+/** Tiempo fuera acumulado, calculado como en el panel del profesor: suma de los away_end (guardados o
+ *  pendientes de enviar) más la salida en curso. Sale de los eventos del servidor, así que sobrevive a recargas. */
+function awayTotalMs() {
+  const all = { ...myEvents };
+  for (const ev of queue) all[ev.clientId] = ev;
+  const done = Object.values(all).filter((e) => e.type === 'away_end').reduce((a, e) => a + (e.durationMs || 0), 0);
+  return done + (away ? Date.now() - away.since : 0);
+}
+function renderAwayTotal() {
+  const text = t('exam.awayTotal', { dur: fmtDur(awayTotalMs()) });
+  if ($('#bar-away').textContent !== text) $('#bar-away').textContent = text;
+}
 
 // ---------- Vistas ----------
 const views = ['loading', 'join', 'wait', 'exam', 'done'];
@@ -54,6 +69,7 @@ function render() {
     t('rules.keepOpen'),
     t('rules.tabMode'),
     exam.toleranceMs ? t('rules.awayTolerance', { dur: fmtDur(exam.toleranceMs) }) : t('rules.away'),
+    t('rules.awayTotal'),
   ];
   $('#wait-rules-list').innerHTML = rules.map((r) => `<li>${esc(r)}</li>`).join('');
 }
@@ -63,10 +79,14 @@ function renderDone() {
   $('#done-num').hidden = !session.num;
   $('#done-num').textContent = t('done.num', { num: session.num });
   $('#done-text').textContent = submittedAt ? t('done.submittedText', { time: fmtTime(submittedAt) }) : t('done.text');
+  const enteredExam = Object.values(myEvents).some((e) => e.type === 'exam_enter');
+  $('#done-away').hidden = !enteredExam;
+  $('#done-away').textContent = t('done.awayTotal', { dur: fmtDur(awayTotalMs()) });
 }
 
 function renderExamBar() {
   $('#bar-student').textContent = studentLabel(session);
+  renderAwayTotal();
 }
 
 // ---------- Unirse ----------
@@ -109,11 +129,16 @@ function startSession() {
     if (exam.status === 'active' && entered) syncTools();
     render();
   }, (err) => { if (err.code === 'permission') resetSession(); });
+  stopMyEvents = be.watchMyEvents(session.examId, (evs) => {
+    myEvents = evs;
+    if (exam) render();
+  });
   queue.forEach(deliver); // reenvío de lo que quedó pendiente antes de recargar
 }
 
 function stopSession() {
   stopMeta?.(); stopMeta = null;
+  stopMyEvents?.(); stopMyEvents = null; myEvents = {};
   presence?.stop(); presence = null;
 }
 
@@ -387,12 +412,13 @@ function renderNotice() {
   if (!infraction && !fsExit) { // fuera menos de la tolerancia
     notice = null;
     $('#alert').hidden = true;
-    showToast(t('alert.short', { dur: fmtDur(awayMs), tol: fmtDur(exam.toleranceMs) }));
+    showToast(t('alert.short', { dur: fmtDur(awayMs), tol: fmtDur(exam.toleranceMs), total: fmtDur(awayTotalMs()) }));
     return;
   }
   hideToast();
   const lines = [];
   if (awayMs != null) lines.push(`<p class="alert-dur">${esc(t('alert.dur', { dur: fmtDur(awayMs) }))}</p>`);
+  if (awayMs != null) lines.push(`<p><strong>${esc(t('alert.total', { dur: fmtDur(awayTotalMs()) }))}</strong></p>`);
   if (infraction) lines.push(`<p>${esc(exam.alertText)}</p>`);
   else if (awayMs != null) lines.push(`<p>${esc(t('alert.noInfraction', { tol: fmtDur(exam.toleranceMs) }))}</p>`);
   if (fsExit) lines.push(`<p>${esc(t(infraction ? 'alert.fsAlso' : 'alert.fsText'))}</p>`);
@@ -460,6 +486,7 @@ setInterval(() => {
   if (!exam?.startedAt || exam.status !== 'active') return;
   const now = serverNow();
   const left = examEndsAt(exam) - now;
+  if (monitoring()) renderAwayTotal();
   const el = $('#bar-clock');
   el.textContent = left > 0 ? fmtClock(left) : t('exam.grace', { time: fmtClock(examClosesAt(exam) - now) });
   el.classList.toggle('low', left < 5 * 60_000);

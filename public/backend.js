@@ -367,6 +367,10 @@ export function createBackend({ emulator = shouldUseEmulator(), name } = {}) {
       }
     },
 
+    /** Eventos propios del alumno (para mostrarle su tiempo fuera acumulado): cb({ clientId: ev }). */
+    watchMyEvents: (examId, cb) =>
+      onValue(ref(db, `exams/${examId}/events/${uidOrThrow()}`), (s) => cb(s.val() || {}), () => {}),
+
     watchMeta: (examId, cb, onError) =>
       onValue(ref(db, `exams/${examId}/meta`), (s) => cb(normMeta(examId, s.val())), (err) => onError?.(wrap(err))),
 

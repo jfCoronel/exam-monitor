@@ -13,6 +13,7 @@
 .bar-student { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 28ch; }
 .clock { font-size: 1.125rem; font-weight: 700; min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
 .clock.low { color: #ffd98a; }
+.bar-away { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .tool-tabs { display: flex; gap: 4px; flex: 1; min-width: 0; overflow-x: auto; }
 .tool-tabs button { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .45); padding: 6px 14px; white-space: nowrap; }

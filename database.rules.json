@@ -209,6 +209,7 @@
         },
         "events": {
           "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
             ".indexOn": [
               "ts"
             ],

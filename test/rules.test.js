@@ -173,6 +173,10 @@ test('eventos y ciclo de vida', async (t) => {
   await t.test('tras terminar no registra más eventos', () => assertFails(event('al1', 'c10', { type: 'away_start' })));
   await t.test('no puede marcar como terminado a otro', () => assertFails(anon('al1').ref(`exams/${EXAM}/submitted/al2`).set(TS)));
   await t.test('la hora de entrega la pone el servidor', () => assertFails(anon('al2').ref(`exams/${EXAM}/submitted/al2`).set(1)));
+  await t.test('lee sus propios eventos, no los de otros (para ver su tiempo fuera)', async () => {
+    await assertSucceeds(anon('al1').ref(`exams/${EXAM}/events/al1`).get());
+    await assertFails(anon('al1').ref(`exams/${EXAM}/events/al2`).get());
+  });
   await t.test('lee su propia entrega, no la de otros', async () => {
     await assertSucceeds(anon('al1').ref(`exams/${EXAM}/submitted/al1`).get());
     await assertFails(anon('al1').ref(`exams/${EXAM}/submitted/al2`).get());

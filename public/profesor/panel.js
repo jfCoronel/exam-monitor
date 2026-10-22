@@ -39,7 +39,8 @@ function applyEvent(ev) {
   s.away = null;
   for (const e of s.events) {
     if (e.type === 'away_start') s.away = { since: eventTime(e), reason: e.reason };
-    if (e.type === 'away_end' || e.type === 'page_leave') s.away = null;
+    // exam_enter: volvió a entrar tras recargar sin que llegara el page_leave
+    if (e.type === 'away_end' || e.type === 'page_leave' || e.type === 'exam_enter') s.away = null;
   }
 }
 
